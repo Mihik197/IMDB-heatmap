@@ -9,7 +9,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
     useEffect(() => {
         if (!seasons || seasons.length === 0) return;
 
-        const cellWidth = 50;
+        const cellWidth = 40;
         const cellHeight = 40;
         const margin = { top: 80, right: 20, bottom: 40, left: 60 };
 

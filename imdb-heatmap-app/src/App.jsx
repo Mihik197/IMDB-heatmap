@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react'
 import './App.css'
 import SearchBar from './SearchBar'
@@ -7,13 +8,15 @@ function App() {
   const [ searchQuery, setSearchQuery ] = useState('')
   const [ data, setData ] = useState(null)
 
+  const apiKey = import.meta.env.VITE_API_KEY;
+
   const handleSearch = (query) => {
     setSearchQuery(query)
   }
 
   useEffect(() => {
     const fetchAPI = async() => {
-      fetch(`http://www.omdbapi.com/?apikey=your_api_key&t=${searchQuery}`)  // removed p so that it doesn't send requests now while in dev to save API requests
+      fetch(`http://www.omdbapi.com/?apikey=${apiKey}&t=${searchQuery}`)  // removed p so that it doesn't send requests now while in dev to save API requests
       .then(response => response.json())
       .then(data => {
         console.log(data);

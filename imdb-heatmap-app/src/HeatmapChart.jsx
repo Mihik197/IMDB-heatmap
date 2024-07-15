@@ -7,7 +7,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
     const svgRef = useRef(null);
 
     useEffect(() => {
-        if (!seasons || seasons.length === 0) return;
+        if (!seasons || seasons === 0) return;
 
         const cellWidth = 40;
         const cellHeight = 40;
@@ -82,7 +82,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
         chartGroup.append("text")
             .attr("class", "axis-label")
             .attr("transform", "rotate(-90)")
-            .attr("x", -height / 2 + margin.bottom)
+            .attr("x", -height / 2 + margin.top)
             .attr("y", -margin.left + 20)
             .style("text-anchor", "middle")
             .style("font-size", "20px")  // Larger font size

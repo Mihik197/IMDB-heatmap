@@ -8,8 +8,6 @@ const useFetchSeasonsData = (data) => {
     const [error, setError] = useState(null);
     const [ episodeDataForD3, setEpisodeDataForD3 ] = useState(null);
 
-    const apiKey = import.meta.env.VITE_API_KEY;
-
     useEffect(() => {
         async function fetchSeasonsData() {
             if (!data || !data.totalSeasons) return;  // to make sure we have the data
@@ -17,59 +15,25 @@ const useFetchSeasonsData = (data) => {
             setIsLoading(true);
 
             setShowName(data.Title);
-            const totalSeasons = parseInt(data.totalSeasons);
-            const seasonPromises = [];
-
-            for (let i = 1; i <= totalSeasons; i++) {
-                seasonPromises.push(
-                    fetch(`http://www.omdbapi.com/?apikey=${apiKey}&i=${data.imdbID}&season=${i}`)
-                        .then(response => response.json())
-                        .catch(error => {
-                            console.error(`Error fetching season ${i} data`, error);
-                            setError(error);
-                            return { Episodes: [] };  // to keep the data structure consistent in case one season's data is missing in between
-                        })
-                );
-            }
-
-            const fetchRatingFromIMDb = async (imdbID) => {
-                try {
-                    const response = await fetch(`http://localhost:5000/getRating?imdbID=${imdbID}`);
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch rating for ${imdbID}`);
-                    }
-    
-                    const { rating } = await response.json()
-                    console.log(rating)
-                    return parseFloat(rating) || "N/A";
-                }
-                catch (error) {
-                    console.error("Error scraping rating data for ${imdbID}:", error);
-                    return "N/A";
-                }
-            }
-
+            
             try {
-                const allSeasonsData = await Promise.all(seasonPromises);
-                console.log("All seasons data", allSeasonsData);
-                setSeasons(allSeasonsData);
-                  
+                const response = await fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch show data');
+                }
 
-                // preparing data for D3, D3 often works best with a "flattened" data structure that's why
-                const episodeDataPromises = allSeasonsData.flatMap(season => 
-                    season.Episodes.map(async (episode) => {
-                        const rating = parseFloat(episode.imdbRating) || await fetchRatingFromIMDb(episode.imdbID);
-                        return {
-                        season: parseInt(season.Season),
-                        episode: parseInt(episode.Episode),
-                        title: episode.Title,
-                        rating: rating,
-                        id: episode.imdbID
-                    }
-                })
-                );
-                
-                const episodeData = await Promise.all(episodeDataPromises);
+                const showData = await response.json();
+                setSeasons(showData.totalSeasons);
+
+                // preparing data for D3, D3 works best with a "flattened" data structure that's why
+                const episodeData = showData.episodes.map(episode => ({
+                    season: episode.season,
+                    episode: episode.episode,
+                    title: episode.title,
+                    rating: episode.rating,
+                    id: episode.imdb_id
+                }));    
+
                 console.log("Episode data for D3", episodeData);
                 setEpisodeDataForD3(episodeData);
 
@@ -80,8 +44,6 @@ const useFetchSeasonsData = (data) => {
                 setIsLoading(false);
             }
         }
-
-        
 
         fetchSeasonsData();
     }, [data]);

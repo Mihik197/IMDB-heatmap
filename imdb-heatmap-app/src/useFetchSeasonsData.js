@@ -32,22 +32,45 @@ const useFetchSeasonsData = (data) => {
                 );
             }
 
+            const fetchRatingFromIMDb = async (imdbID) => {
+                try {
+                    const response = await fetch(`http://localhost:5000/getRating?imdbID=${imdbID}`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch rating for ${imdbID}`);
+                    }
+    
+                    const { rating } = await response.json()
+                    console.log(rating)
+                    return parseFloat(rating) || "N/A";
+                }
+                catch (error) {
+                    console.error("Error scraping rating data for ${imdbID}:", error);
+                    return "N/A";
+                }
+            }
+
             try {
                 const allSeasonsData = await Promise.all(seasonPromises);
                 console.log("All seasons data", allSeasonsData);
                 setSeasons(allSeasonsData);
+                  
 
                 // preparing data for D3, D3 often works best with a "flattened" data structure that's why
-                const episodeData = allSeasonsData.flatMap(season => 
-                    season.Episodes.map(episode => ({
+                const episodeDataPromises = allSeasonsData.flatMap(season => 
+                    season.Episodes.map(async (episode) => {
+                        const rating = parseFloat(episode.imdbRating) || await fetchRatingFromIMDb(episode.imdbID);
+                        return {
                         season: parseInt(season.Season),
                         episode: parseInt(episode.Episode),
                         title: episode.Title,
-                        rating: parseFloat(episode.imdbRating),
+                        rating: rating,
                         id: episode.imdbID
-                    }))
+                    }
+                })
                 );
-
+                
+                const episodeData = await Promise.all(episodeDataPromises);
+                console.log("Episode data for D3", episodeData);
                 setEpisodeDataForD3(episodeData);
 
             } catch (error) {
@@ -57,6 +80,8 @@ const useFetchSeasonsData = (data) => {
                 setIsLoading(false);
             }
         }
+
+        
 
         fetchSeasonsData();
     }, [data]);

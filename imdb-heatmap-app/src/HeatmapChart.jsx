@@ -160,7 +160,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
                 const rating = d.rating;
 
                 d3.select(this.parentNode).append("text") // this here refers to the parent rectangle element
-                    .text(rating !== "N/A" ? rating : "")
+                    .text(rating)
                     .attr("x", xScale(d.season) + xScale.bandwidth() / 2)  // centering the label
                     .attr("y", yScale(d.episode) + yScale.bandwidth() / 2 + 5)
                     .attr("text-anchor", "middle")

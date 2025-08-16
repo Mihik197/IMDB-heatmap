@@ -11,11 +11,9 @@ const Heatmap = ({ data }) => {
     if (!data) return null;
 
     return (
-        <div>
+        <div className="heatmap-wrapper">
             <h1>{showName} HeatMap (prototype)</h1>
-
             {/* work in progress */}
-
             <HeatmapChart episodeDataForD3={episodeDataForD3} seasons={seasons}/>
 
         </div>

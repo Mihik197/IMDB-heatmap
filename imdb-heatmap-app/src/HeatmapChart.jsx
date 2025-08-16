@@ -45,7 +45,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
         //     .domain([5, 9.1]); // focusing the color range from 4 to 10
 
         const colorScale = d3.scaleLinear()
-            .domain([4.5, 6, 7, 8, 9.7])  // Adjusted to match the six color stages
+            .domain([5.7, 6.7, 7.4, 8, 9.4])  // Adjusted to match the six color stages
             .range([
                 "#d73027",  // Red
                 "#fc8d59",  // Soft Red

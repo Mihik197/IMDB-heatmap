@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base 
 from sqlalchemy.orm import sessionmaker
 import requests
 from dotenv import load_dotenv
@@ -101,13 +101,17 @@ def fetch_and_store_show(imdb_id):
                 if season_response.status_code == 200:
                     season_data = season_response.json()
                     for ep_data in season_data.get('Episodes', []):  # if the 'Episodes' key does not exist, it returns an empty list []
-                        rating = parse_float(ep_data.get('imdbRating')) or fetch_rating_from_imdb(ep_data['imdbID'])
+                        # Try OMDB rating first
+                        rating = parse_float(ep_data.get('imdbRating'))
+                        if rating is None:  # fallback to scraping
+                            scraped = fetch_rating_from_imdb(ep_data['imdbID'])
+                            rating = parse_float(scraped)
                         episode = Episode(
                             show_id=show.id,
                             season=season,
                             episode=int(ep_data.get('Episode', 0)),
                             title=ep_data.get('Title', 'No Title'),
-                            rating=rating,
+                            rating=rating,  # can be None; stored as NULL in DB
                             imdb_id=ep_data.get('imdbID', 'No IMDb ID'),
                         )
                         session.add(episode)
@@ -125,15 +129,17 @@ def fetch_rating_from_imdb(imdb_id):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
-        rating_tag = soup.find('span', class_='sc-eb51e184-1 cxhhrI')
+        rating_tag = soup.find('span', class_='sc-eb51e184-1 ljxVSS')
         if rating_tag:
-            print(f"Found rating for {imdb_id}: {rating_tag.text}")
-            return rating_tag.text
+            text = rating_tag.text.strip()
+            print(f"Found rating for {imdb_id}: {text}")
+            return text
         else:
             print(f"No rating found for {imdb_id}")
     else:
         print(f"Failed to fetch IMDb page for {imdb_id}: {response.status_code}")
-    return "N/A"
+    # Return None so caller can decide how to handle missing rating
+    return None
 
 
 def parse_float(value):

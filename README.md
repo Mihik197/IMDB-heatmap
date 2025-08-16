@@ -1,55 +1,74 @@
-# IMDB-heatmap
+<h1 align="center">IMDB Heatmap</h1>
 
+Visual heatmap of episode ratings for TV series. OMDb supplies baseline metadata; optional lightweight IMDb scraping fills gaps (votes, air dates, missing ratings, early episode placeholders). Built for quick visual insight into when a show peaks or dips.
 
-## Features (in progress)
+## Features
 
-- **Data Fetching**: loads TV show data from the OMDB API and scrapes additional information as needed.
-- **Interactive Visualization**: Users can hover and click on heatmap cells to be linked to IMDB pages for each episode
-- **Backend Support**: flask is used for web scraping and managing API requests, with a SQLite database for data storage.
+- Interactive D3 heatmap (hover, IMDb deep links)
+- Autocomplete search (OMDb proxy)
+- Optional fast ingest: instant baseline + background enrichment
+- Refresh endpoints (missing-only or full)
+- Local persistence (SQLite) with simple runtime migrations
 
-## Installing
+## Stack
 
-### Clone the repo
+Frontend: React, Vite, D3  
+Backend: Python (Flask, SQLAlchemy, BeautifulSoup)  
+DB: SQLite (file)  
+Tests: pytest (backend)
 
-```bash
-  git clone https://github.com/Mihik197/IMDB-heatmap.git
-  cd heatmap-visualization
+## Quick Start
+
+Clone:
+```powershell
+git clone https://github.com/Mihik197/IMDB-heatmap.git
+cd IMDB-heatmap
 ```
-### Install dependencies
 
-```bash
-  npm install
-```
-
-
-For the backend, navigate to the backend folder and install the required Python packages:
-```bash
+Backend:
+```powershell
+cd backend
+python -m venv venv
+./venv/Scripts/Activate.ps1
 pip install -r requirements.txt
+echo VITE_API_KEY=YOUR_OMDB_KEY > .env
+# optional fast ingest
+echo FAST_INGEST=1 >> .env
+python app.py
 ```
 
-### Set up environment variables
+Frontend (new terminal):
+```powershell
+cd imdb-heatmap-app
+npm install
+npm run dev
+```
+Open the Vite dev URL (e.g. http://localhost:5173) while backend runs on port 5000.
 
-Create a `.env` and update the VITE_API_KEY with your OMDB API key
+## Minimal Configuration
 
-### Run the application
+Required: `VITE_API_KEY` (OMDb API key) in `backend/.env`.
+Optional: `FAST_INGEST=1` for two-phase load; `ENABLE_SCRAPE_CACHE=1` to cache scraped ratings.
 
-```bash
-  npm run dev
+## Fast Ingest (Summary)
+
+If enabled: backend returns OMDb-only data immediately, then a thread enriches with IMDb season pages. Frontend shows an “Enriching…” badge and auto-polls until complete. Disable by omitting the variable.
+
+## Project Structure
+
+```
+backend/        Flask API, scraping, persistence
+imdb-heatmap-app/  React client
 ```
 
-```bash
-flask run
-```
+## Contributing
 
-### Built With
+Small focused PRs welcome. Keep style consistent, add tests when altering backend logic.
 
-[React.js](https://reactjs.org/) - web framework used  
-[D3.js](https://d3js.org/) - library for producing dynamic, interactive data visualizations  
-[Vite](https://vitejs.dev/) - frontend tooling  
-[Flask](https://flask.palletsprojects.com/) - backend framework
-[SQLite](https://www.sqlite.org/) - database
+## License
 
+MIT (see LICENSE if present).
 
-### License
+## Disclaimer
 
-MIT
+Uses OMDb API and light parsing of IMDb pages for educational purposes. Not affiliated with or endorsed by IMDb or OMDb. Respect rate limits.

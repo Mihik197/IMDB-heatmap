@@ -1,146 +1,246 @@
-from flask import Flask, request, jsonify
+# app.py
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import requests
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
 import os
+import time
 
-app = Flask(__name__)
-CORS(app)
+import services
+import show_manager
+import worker
+from utils import sanitize_imdb_id, safe_json
+
+from database import (
+    init_db,
+    ensure_columns,
+    ensure_indices,
+    is_episode_stale,
+    is_show_metadata_stale,
+    session,
+    Show,
+    Episode
+)
 
 # Load environment variables
 load_dotenv()
 
+app = Flask(__name__)
+CORS(app)
 
-# database setup
-DATABASE_URL = "sqlite:///shows.db"
-engine = create_engine(DATABASE_URL)
-Base = declarative_base()
-Session = sessionmaker(bind=engine)
-session = Session()
-
-class Show(Base):
-    __tablename__ = 'shows'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    imdb_id = Column(String, unique=True, nullable=False)
-    title = Column(String)
-    total_seasons = Column(Integer)
-    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
-
-class Episode(Base):
-    __tablename__ = 'episodes'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    show_id = Column(Integer)
-    season = Column(Integer)
-    episode = Column(Integer)
-    title = Column(String)
-    rating = Column(Float)
-    imdb_id = Column(String)
-
-Base.metadata.create_all(engine)  # creates the tables
-
+@app.route('/search')
+def search_titles():
+    """Lightweight search proxy for autocomplete."""
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', '1')
+    if not query:
+        return jsonify([])
+    
+    ql = query.lower()
+    now = time.time()
+    cached = services._search_cache.get(ql)
+    if cached and (now - cached[0]) < services.SEARCH_TTL:
+        return jsonify(cached[1])
+        
+    api_key = os.getenv('VITE_API_KEY')
+    url = f'http://www.omdbapi.com/?apikey={api_key}&s={query}&type=series&page={page}'
+    try:
+        resp = services.throttled_omdb_get(url, timeout=8)
+    except Exception:
+        return jsonify([])
+        
+    if resp.status_code != 200:
+        return jsonify([])
+        
+    data = resp.json()
+    if data.get('Response') != 'True':
+        return jsonify([])
+        
+    results = [{
+        'title': item.get('Title'),
+        'year': item.get('Year'),
+        'imdbID': item.get('imdbID'),
+        'type': item.get('Type')
+    } for item in data.get('Search', [])[:10]]
+    
+    services._search_cache[ql] = (now, results)
+    return jsonify(results)
 
 @app.route("/getShowByTitle")
 def get_show_by_title():
     title = request.args.get('title')
-    if title:
-        apiKey = os.getenv('VITE_API_KEY')
-        url = f'http://www.omdbapi.com/?apikey={apiKey}&t={title}'
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('Response') == 'True':
-                return jsonify(data)
-            else:
-                return jsonify({'error': data.get('Error', 'Failed to fetch show data')}), 500
-    return jsonify({'error': 'Title not provided'}), 400
+    if not title:
+        return jsonify({'error': 'Title not provided'}), 400
 
+    apiKey = os.getenv('VITE_API_KEY')
+    url = f'http://www.omdbapi.com/?apikey={apiKey}&t={title}'
+    response = services.throttled_omdb_get(url)
+    
+    if response.status_code != 200:
+        return jsonify({'error': 'Failed to fetch show data'}), 500
+
+    data = safe_json(response)
+    if data is None:
+        return jsonify({'error': 'Upstream JSON parse failure'}), 502
+        
+    if data.get('Response') == 'True':
+        return jsonify(data)
+    else:
+        return jsonify({'error': data.get('Error', 'Failed to fetch show data')}), 500
 
 @app.route("/getShow")
 def get_show():
-    imdb_id = request.args.get('imdbID')
-    if imdb_id:
-        show = session.query(Show).filter_by(imdb_id=imdb_id).first()
-        if show:
-            episodes = session.query(Episode).filter_by(show_id=show.id).all()
-            return jsonify({
-                'title': show.title,
-                'totalSeasons': show.total_seasons,
-                'episodes': [{
-                    'season': ep.season,
-                    'episode': ep.episode,
-                    'title': ep.title,
-                    'rating': ep.rating,
-                    'imdb_id': ep.imdb_id,
-                } for ep in episodes]
-            })
-        else:
-            # fetch from OMDB and IMDB if not found in the database
-            return fetch_and_store_show(imdb_id)
-    return jsonify({'error': 'IMDB ID not provided'}), 400
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'IMDB ID not provided'}), 400
+        
+    show = session.query(Show).filter_by(imdb_id=imdb_id).first()
+    if show:
+        return get_show_data(imdb_id)
+    else:
+        return show_manager.fetch_and_store_show(imdb_id)
 
+def get_show_data(imdb_id):
+    """Helper to fetch show data from DB and format it for the API response."""
+    show = session.query(Show).filter_by(imdb_id=imdb_id).first()
+    if not show:
+        return jsonify({'error': 'Show not found in DB'}), 404
+        
+    try:
+        session.refresh(show)
+    except Exception:
+        pass # Handle detached instance error if occurs
+        
+    episodes = session.query(Episode).filter_by(show_id=show.id).all()
+    incomplete = any(ep.rating is None for ep in episodes)
+    metadata_stale = is_show_metadata_stale(show)
+    episodes_stale_count = sum(1 for ep in episodes if is_episode_stale(ep))
+    absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False))
+    provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
+    
+    etag_val = f"{int(show.last_updated.timestamp()) if show.last_updated else 0}:{len(episodes)}:{show.total_seasons}:{absent_count}"
+    if request.headers.get('If-None-Match') == etag_val:
+        resp = make_response('', 304)
+        resp.headers['ETag'] = etag_val
+        return resp
+        
+    payload = {
+        'title': show.title, 'imdbID': show.imdb_id, 'totalSeasons': show.total_seasons,
+        'genres': show.genres, 'year': show.year, 'imdbRating': show.imdb_rating,
+        'imdbVotes': show.imdb_votes,
+        'lastFullRefresh': show.last_full_refresh.isoformat() if show.last_full_refresh else None,
+        'incomplete': incomplete, 'metadataStale': metadata_stale,
+        'episodesStaleCount': episodes_stale_count,
+        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in show_manager._enrichment_in_progress)),
+        'episodes': [{
+            'season': ep.season, 'episode': ep.episode, 'title': ep.title, 'rating': ep.rating,
+            'imdb_id': ep.imdb_id, 'votes': ep.votes,
+            'lastChecked': ep.last_checked.isoformat() if ep.last_checked else None,
+            'missing': ep.missing, 'absent': getattr(ep, 'absent', None),
+            'provisional': getattr(ep, 'provisional', None),
+            'airDate': ep.air_date.isoformat() if getattr(ep, 'air_date', None) else None,
+        } for ep in episodes],
+        'absentEpisodesCount': absent_count,
+        'provisionalEpisodesCount': provisional_count
+    }
+    
+    resp = jsonify(payload)
+    resp.headers['ETag'] = etag_val
+    resp.headers['Cache-Control'] = 'public, max-age=5'
+    return resp
 
-def fetch_and_store_show(imdb_id):
+@app.route('/getShowMeta')
+def get_show_meta():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'IMDB ID not provided'}), 400
+
     apiKey = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        if data.get('Response') == 'True':
-            show = Show(imdb_id=imdb_id, title=data['Title'], total_seasons=int(data['totalSeasons']))
-            session.add(show)
-            session.commit()
-
-            # fetch data for each season
-            for season in range(1, show.total_seasons + 1):
-                season_url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}&season={season}'
-                season_response = requests.get(season_url)
-                if season_response.status_code == 200:
-                    season_data = season_response.json()
-                    for ep_data in season_data.get('Episodes', []):  # if the 'Episodes' key does not exist, it returns an empty list []
-                        rating = parse_float(ep_data.get('imdbRating')) or fetch_rating_from_imdb(ep_data['imdbID'])
-                        episode = Episode(
-                            show_id=show.id,
-                            season=season,
-                            episode=int(ep_data.get('Episode', 0)),
-                            title=ep_data.get('Title', 'No Title'),
-                            rating=rating,
-                            imdb_id=ep_data.get('imdbID', 'No IMDb ID'),
-                        )
-                        session.add(episode)
-            session.commit()
-            return get_show()
-    return jsonify({'error': 'Failed to fetch show data'}), 500
-
-
-# fetch ratings for the episodes which have missing ratings in OMDB API
-def fetch_rating_from_imdb(imdb_id):
-    url = f'https://www.imdb.com/title/{imdb_id}/'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, 'html.parser')
-        rating_tag = soup.find('span', class_='sc-eb51e184-1 cxhhrI')
-        if rating_tag:
-            print(f"Found rating for {imdb_id}: {rating_tag.text}")
-            return rating_tag.text
-        else:
-            print(f"No rating found for {imdb_id}")
-    else:
-        print(f"Failed to fetch IMDb page for {imdb_id}: {response.status_code}")
-    return "N/A"
-
-
-def parse_float(value):
     try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+        resp = services.throttled_omdb_get(url, timeout=10)
+    except Exception:
+        return jsonify({'error': 'Upstream failure'}), 502
+    
+    if resp.status_code != 200:
+        return jsonify({'error': 'Upstream status'}), 502
+        
+    data = safe_json(resp)
+    if not data or data.get('Response') != 'True':
+        return jsonify({'error': 'Not found'}), 404
+        
+    subset = {
+        'Title': data.get('Title'), 'Year': data.get('Year'), 'Poster': data.get('Poster'),
+        'Plot': data.get('Plot'), 'imdbID': data.get('imdbID'), 'totalSeasons': data.get('totalSeasons')
+    }
+    resp = jsonify(subset)
+    resp.headers['Cache-Control'] = 'public, max-age=30'
+    return resp
+
+@app.route('/refresh/missing', methods=['POST'])
+def refresh_missing():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'IMDB ID required'}), 400
+    return show_manager.process_missing_refresh(imdb_id)
+
+@app.route('/refresh/show', methods=['POST'])
+def refresh_show():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'IMDB ID required'}), 400
+    return show_manager.process_show_refresh(imdb_id)
+
+@app.route('/refresh/metadata', methods=['POST'])
+def refresh_metadata_only():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'IMDB ID required'}), 400
+    return show_manager.process_metadata_refresh(imdb_id)
+
+
+# --- Debug Endpoints ---
+
+@app.route('/debug/scrapeRating')
+def debug_scrape_rating():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'imdbID required'}), 400
+    rating = services.fetch_rating_from_imdb(imdb_id)
+    return jsonify({'imdbID': imdb_id, 'scrapedRating': rating})
+
+@app.route('/debug/clearSeasonCache')
+def debug_clear_season_cache():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    if not imdb_id:
+        return jsonify({'error': 'imdbID required'}), 400
+    removed = 0
+    keys = list(services._imdb_season_cache.keys())
+    for k in keys:
+        if k[0] == imdb_id:
+            services._imdb_season_cache.pop(k, None)
+            removed += 1
+    return jsonify({'cleared': removed})
+
+@app.route('/debug/parseSeason')
+def debug_parse_season():
+    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+    season = request.args.get('season')
+    if not imdb_id or not season or not season.isdigit():
+        return jsonify({'error': 'imdbID and numeric season required'}), 400
+    key = (imdb_id, int(season))
+    services._imdb_season_cache.pop(key, None)
+    items = services.parse_imdb_season(imdb_id, int(season))
+    return jsonify({
+        'imdbID': imdb_id, 'season': int(season), 'count': len(items),
+        'episodes': items,
+        'rated': sum(1 for x in items if x.get('rating') is not None),
+        'withVotes': sum(1 for x in items if x.get('votes') is not None)
+    })
+
 
 if __name__ == '__main__':
+    init_db()
+    ensure_columns()
+    ensure_indices()
+    worker.start_background_maintenance()
     app.run(debug=True)

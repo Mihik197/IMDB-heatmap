@@ -1,54 +1,25 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react';
+// Simplified hook: derive seasons + flattened episode list directly from parent-supplied data.
+// Eliminates redundant network fetch that caused UI flashing and double loading states.
+import { useMemo } from 'react';
 
 const useFetchSeasonsData = (data) => {
-    const [seasons, setSeasons] = useState(null);
-    const [showName, setShowName] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [ episodeDataForD3, setEpisodeDataForD3 ] = useState(null);
-
-    useEffect(() => {
-        async function fetchSeasonsData() {
-            if (!data || !data.totalSeasons) return;  // to make sure we have the data
-
-            setIsLoading(true);
-
-            setShowName(data.Title);
-            
-            try {
-                const response = await fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch show data');
-                }
-
-                const showData = await response.json();
-                setSeasons(showData.totalSeasons);
-
-                // preparing data for D3, D3 works best with a "flattened" data structure that's why
-                const episodeData = showData.episodes.map(episode => ({
-                    season: episode.season,
-                    episode: episode.episode,
-                    title: episode.title,
-                    rating: episode.rating,
-                    id: episode.imdb_id
-                }));    
-
-                console.log("Episode data for D3", episodeData);
-                setEpisodeDataForD3(episodeData);
-
-            } catch (error) {
-                console.error("Error fetching seasons data :(", error);
-                setError(error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-        fetchSeasonsData();
+    const derived = useMemo(() => {
+        if (!data || !data.episodes) return { seasons: null, showName: '', episodeDataForD3: null };
+        const episodeDataForD3 = data.episodes.map(ep => ({
+            season: ep.season,
+            episode: ep.episode,
+            title: ep.title,
+            rating: ep.rating,
+            id: ep.imdb_id
+        }));
+        return {
+            seasons: data.totalSeasons,
+            showName: data.title || '',
+            episodeDataForD3
+        };
     }, [data]);
-
-    return { seasons, showName, isLoading, error, episodeDataForD3 };
-}
+    return { ...derived, isLoading: false, error: null };
+};
 
 export default useFetchSeasonsData;

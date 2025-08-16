@@ -1,4 +1,9 @@
-flask==2.0.1
-requests==2.26.0
-python-dotenv==0.19.0
-
+flask
+werkzeug
+flask_cors
+sqlalchemy
+requests
+python-dotenv
+beautifulsoup4
+pytest
+requests-mock

@@ -5,3 +5,5 @@ sqlalchemy
 requests
 python-dotenv
 beautifulsoup4
+pytest
+requests-mock

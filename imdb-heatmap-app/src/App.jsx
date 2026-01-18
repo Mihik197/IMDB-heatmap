@@ -169,73 +169,123 @@ function App() {
     return () => { pollStopRef.current = true; clearTimeout(id); };
   }, [partialData, data?.imdbID])
 
+  // Parse genres from string like "Action, Adventure, Drama"
+  const genres = baseMeta?.Genre ? baseMeta.Genre.split(',').map(g => g.trim()) : [];
+
   return (
     <div className="min-h-screen bg-bg text-text">
       <Header />
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 py-4">
         <SearchBar onSearch={handleSearch} />
         {error && <p className="text-danger font-mono text-sm font-semibold mt-3" role="alert">{error}</p>}
+
         {baseMeta && !baseMeta.error && (
-          <div className="mt-6 p-5 bg-surface border border-border rounded shadow-sm">
-            <div className="flex gap-5 mb-5 items-start flex-wrap">
-              <div className="shrink-0">
-                {baseMeta.Poster && baseMeta.Poster !== 'N/A' && (
-                  <img src={baseMeta.Poster} alt={`${baseMeta.Title} Poster`} className="w-[180px] max-w-full rounded" />
+          <div className="mt-4 flex gap-4 items-start">
+            {/* Left Sidebar - Show Info */}
+            <div className="w-[220px] shrink-0 bg-surface border border-border rounded-lg p-4">
+              {/* Poster */}
+              {baseMeta.Poster && baseMeta.Poster !== 'N/A' && (
+                <img
+                  src={baseMeta.Poster}
+                  alt={`${baseMeta.Title} Poster`}
+                  className="w-full rounded-lg mb-4 shadow-md"
+                />
+              )}
+
+              {/* Title */}
+              <h2 className="text-lg font-bold text-white leading-tight mb-2">{baseMeta.Title}</h2>
+
+              {/* Rating */}
+              {baseMeta.imdbRating && baseMeta.imdbRating !== 'N/A' && (
+                <div className="flex items-center gap-1.5 mb-3 bg-[#1a1f23] rounded-full px-3 py-1.5 w-fit">
+                  <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                  </svg>
+                  <span className="text-white font-bold">{baseMeta.imdbRating}</span>
+                  <span className="text-text-muted text-sm">/ 10</span>
+                </div>
+              )}
+
+              {/* Year & Seasons */}
+              <div className="flex items-center gap-2 text-xs text-text-muted mb-3 flex-wrap">
+                {baseMeta.Year && (
+                  <div className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>{baseMeta.Year}</span>
+                  </div>
+                )}
+                {baseMeta.totalSeasons && (
+                  <div className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>{baseMeta.totalSeasons} Season{baseMeta.totalSeasons !== '1' ? 's' : ''}</span>
+                  </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-semibold mb-1 flex items-center flex-wrap gap-2">
-                  {baseMeta.Title}
-                  {incomplete && (
-                    <span className="inline-block px-2 py-0.5 text-[10px] font-mono font-semibold tracking-wide bg-[#302414] text-[#d9a45e] border border-[#4a3722] rounded" title="Some episodes still missing ratings">
-                      Incomplete data
+
+              {/* Genres */}
+              {genres.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {genres.map(genre => (
+                    <span
+                      key={genre}
+                      className="px-2 py-0.5 text-[10px] font-medium text-text-muted bg-surface-alt border border-border rounded-full"
+                    >
+                      {genre}
                     </span>
-                  )}
-                  {partialData && (
-                    <span className="inline-block px-2 py-0.5 text-[10px] font-mono font-semibold tracking-wide bg-[#1e2d38] text-[#7fb9d8] border border-[#2d4856] rounded" title="Background enrichment in progress">
-                      Enriching…
-                    </span>
-                  )}
-                </h2>
-                <p className="text-text-muted text-xs tracking-wide mb-3">{baseMeta.Year}</p>
-                {baseMeta.Plot && <p className="text-sm leading-relaxed max-w-[60ch]">{baseMeta.Plot}</p>}
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {hasMissing && (
-                    <button
-                      className="px-3 py-2 text-[10px] font-mono font-semibold tracking-wide bg-[#253035] text-text border border-[#354247] rounded cursor-pointer hover:bg-[#2d3a40] disabled:opacity-55 disabled:cursor-default"
-                      onClick={refreshMissing}
-                      disabled={refreshingMissing}
-                    >
-                      {refreshingMissing ? 'Refreshing…' : 'Refresh missing ratings'}
-                    </button>
-                  )}
-                  {stale && (
-                    <button
-                      className="px-3 py-2 text-[10px] font-mono font-semibold tracking-wide bg-[#2d2a1f] text-[#e9d7b7] border border-[#4a4434] rounded cursor-pointer hover:bg-[#363225] disabled:opacity-55 disabled:cursor-default"
-                      onClick={refreshAll}
-                      disabled={refreshingMissing}
-                    >
-                      {refreshingMissing ? 'Refreshing…' : 'Refresh data'}
-                    </button>
-                  )}
-                  {partialData && (
-                    <button
-                      className="px-3 py-2 text-[10px] font-mono font-semibold tracking-wide bg-[#2d2a1f] text-[#e9d7b7] border border-[#4a4434] rounded cursor-pointer hover:bg-[#363225]"
-                      onClick={() => {
-                        if (!data?.imdbID) return;
-                        fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`, { headers: { 'Cache-Control': 'no-cache', ...(etagRef.current ? { 'If-None-Match': etagRef.current } : {}) } })
-                          .then(async r => { if (r.status === 304) return null; const body = await r.json(); const newEtag = r.headers.get('ETag'); if (newEtag) etagRef.current = newEtag; return body; })
-                          .then(full => { if (full && !full.error) setData(full); });
-                      }}
-                    >
-                      Check now
-                    </button>
-                  )}
+                  ))}
                 </div>
-                {loadingEpisodes && <div className="text-text-muted text-sm mt-3" aria-live="polite">Loading episode ratings…</div>}
+              )}
+
+              {/* Plot */}
+              {baseMeta.Plot && baseMeta.Plot !== 'N/A' && (
+                <p className="text-xs text-text-muted leading-relaxed mb-3">{baseMeta.Plot}</p>
+              )}
+
+              {/* Status badges */}
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {incomplete && (
+                  <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-semibold tracking-wide bg-[#302414] text-[#d9a45e] border border-[#4a3722] rounded" title="Some episodes still missing ratings">
+                    Incomplete
+                  </span>
+                )}
+                {partialData && (
+                  <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-semibold tracking-wide bg-[#1e2d38] text-[#7fb9d8] border border-[#2d4856] rounded" title="Background enrichment in progress">
+                    Enriching…
+                  </span>
+                )}
               </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-1.5">
+                {hasMissing && (
+                  <button
+                    className="w-full px-2 py-1.5 text-[9px] font-mono font-semibold tracking-wide bg-[#253035] text-text border border-[#354247] rounded cursor-pointer hover:bg-[#2d3a40] disabled:opacity-55 disabled:cursor-default"
+                    onClick={refreshMissing}
+                    disabled={refreshingMissing}
+                  >
+                    {refreshingMissing ? 'Refreshing…' : 'Refresh missing'}
+                  </button>
+                )}
+                {stale && (
+                  <button
+                    className="w-full px-2 py-1.5 text-[9px] font-mono font-semibold tracking-wide bg-[#2d2a1f] text-[#e9d7b7] border border-[#4a4434] rounded cursor-pointer hover:bg-[#363225] disabled:opacity-55 disabled:cursor-default"
+                    onClick={refreshAll}
+                    disabled={refreshingMissing}
+                  >
+                    {refreshingMissing ? 'Refreshing…' : 'Refresh data'}
+                  </button>
+                )}
+              </div>
+
+              {loadingEpisodes && <div className="text-text-muted text-xs mt-3" aria-live="polite">Loading ratings…</div>}
             </div>
-            <div className="overflow-x-auto overflow-y-hidden heatmap-scroll">
+
+            {/* Right Content - Heatmap */}
+            <div className="flex-1 min-w-0">
               {partialData && !loadingEpisodes && (
                 <div className="mb-3 px-2 py-1.5 text-[10px] font-mono tracking-wide text-[#6aa6c3] bg-[#132228] border border-[#1e3640] rounded" aria-live="polite">
                   Background IMDb enrichment running… latest ratings will appear automatically.
@@ -246,6 +296,7 @@ function App() {
             </div>
           </div>
         )}
+
         {baseMeta && baseMeta.error && <p className="text-danger font-mono text-sm font-semibold mt-3" role="alert">{baseMeta.error}</p>}
         {stillLoading && !baseMeta && <div className="skeleton mt-3">Loading…</div>}
         <RecentShows onSelect={(title) => handleSearch({ title })} />

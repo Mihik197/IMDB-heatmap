@@ -2,24 +2,24 @@
 import React, { useState, useRef, useMemo } from 'react';
 import EpisodeTooltip from './EpisodeTooltip';
 
-// Vibrant color scale matching reference images
+// Vibrant color scale
 const colorScale = (rating) => {
   if (rating == null) return null;
-  if (rating < 5.5) return '#ef4444';  // red-500
-  if (rating < 6.5) return '#f97316';  // orange-500
-  if (rating < 7.2) return '#eab308';  // yellow-500
-  if (rating < 7.8) return '#84cc16';  // lime-500
-  if (rating < 8.3) return '#22c55e';  // green-500
-  if (rating < 8.8) return '#16a34a';  // green-600
-  if (rating < 9.2) return '#15803d';  // green-700
-  return '#166534';                     // green-800
+  if (rating < 5.5) return '#ef4444';
+  if (rating < 6.5) return '#f97316';
+  if (rating < 7.2) return '#eab308';
+  if (rating < 7.8) return '#84cc16';
+  if (rating < 8.3) return '#22c55e';
+  if (rating < 8.8) return '#16a34a';
+  if (rating < 9.2) return '#15803d';
+  return '#166534';
 };
 
 const HeatmapChart = ({ episodeDataForD3, seasons }) => {
   const [hoveredEpisode, setHoveredEpisode] = useState(null);
   const tooltipRef = useRef(null);
 
-  // Organize episodes by season
+  // Organize episodes by season (TRANSPOSED: seasons as rows, episodes as columns)
   const seasonData = useMemo(() => {
     if (!episodeDataForD3 || !seasons) return { seasons: [], maxEpisodes: 0 };
 
@@ -59,8 +59,8 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
 
   const handleMouseMove = (e) => {
     if (tooltipRef.current) {
-      const x = e.clientX + 15;
-      const y = e.clientY - 100;
+      const x = e.clientX - 100;
+      const y = e.clientY - 130;
       tooltipRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     }
   };
@@ -81,43 +81,49 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Horizontal scroll container only */}
-      <div className="overflow-x-auto heatmap-scroll border border-border rounded-lg bg-[#0d1114]">
-        <table className="border-collapse">
-          <thead>
-            <tr>
-              {/* EP corner header */}
-              <th className="sticky left-0 bg-[#0d1114] px-2 py-1.5 text-[10px] font-bold text-text-muted uppercase tracking-wider text-center min-w-[44px]">
-                EP
-              </th>
-              {/* Season headers */}
-              {seasonData.seasons.map((season) => (
-                <th
-                  key={`header-${season.seasonNumber}`}
-                  className="px-0.5 py-1.5 text-xs font-bold text-text-muted whitespace-nowrap text-center min-w-[44px]"
-                >
-                  S{season.seasonNumber}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Episode rows */}
-            {Array.from({ length: seasonData.maxEpisodes }).map((_, rowIdx) => (
-              <tr key={`row-${rowIdx}`}>
-                {/* Episode number - sticky left */}
-                <td className="sticky left-0 bg-[#0d1114] px-2 py-0.5 text-xs text-text-muted font-medium text-center">
-                  {rowIdx + 1}
-                </td>
-                {/* Episode cells for each season */}
-                {seasonData.seasons.map((season) => {
-                  const episode = season.episodes.find(ep => ep.episode === rowIdx + 1);
+      {/* Horizontal scroll container */}
+      <div className="overflow-x-auto pb-2 heatmap-scroll border border-border rounded-lg bg-[#0d1114]">
+        <div className="inline-block min-w-full p-4">
+
+          {/* Header Row: Episode Numbers */}
+          <div className="flex gap-1 mb-1">
+            {/* Top-Left Corner - "Ep" label */}
+            <div className="w-12 shrink-0 sticky left-0 z-20 bg-[#0d1114] text-right pr-2 text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-end justify-end pb-1">
+              Ep
+            </div>
+
+            {/* Episode Number Headers */}
+            {Array.from({ length: seasonData.maxEpisodes }).map((_, i) => (
+              <div key={`ep-header-${i}`} className="w-10 shrink-0 text-center text-xs text-text-muted font-medium">
+                {i + 1}
+              </div>
+            ))}
+
+            {/* Avg Column Header */}
+            <div className="w-12 shrink-0 text-center text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-end justify-center pb-1 ml-1">
+              Avg
+            </div>
+          </div>
+
+          {/* Data Rows: Seasons */}
+          <div className="flex flex-col gap-1">
+            {seasonData.seasons.map((season) => (
+              <div key={season.seasonNumber} className="flex gap-1 items-center">
+                {/* Season Label (Sticky Left) */}
+                <div className="w-12 h-10 shrink-0 sticky left-0 z-10 bg-[#0d1114] flex items-center justify-end pr-3">
+                  <span className="text-xs font-bold text-text-muted">S{season.seasonNumber}</span>
+                </div>
+
+                {/* Episodes Row */}
+                {Array.from({ length: seasonData.maxEpisodes }).map((_, idx) => {
+                  const episode = season.episodes.find(ep => ep.episode === idx + 1);
 
                   if (!episode) {
                     return (
-                      <td key={`empty-${season.seasonNumber}-${rowIdx}`} className="p-0.5">
-                        <div className="h-10 w-10 rounded-md bg-surface/20 border border-border/30 border-dashed" />
-                      </td>
+                      <div
+                        key={`empty-${season.seasonNumber}-${idx}`}
+                        className="w-10 h-10 shrink-0 rounded-md bg-surface/20 border border-border/30 border-dashed"
+                      />
                     );
                   }
 
@@ -125,46 +131,34 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
                   const hasRating = episode.rating != null;
 
                   return (
-                    <td key={episode.id || `${season.seasonNumber}-${episode.episode}`} className="p-0.5">
-                      <div
-                        className="h-10 w-10 rounded-md cursor-pointer transition-all duration-100 hover:scale-110 hover:z-50 hover:ring-2 hover:ring-white/80 shadow-sm flex items-center justify-center"
-                        style={{
-                          backgroundColor: bgColor || '#1e2529',
-                          border: hasRating ? 'none' : '1px dashed #3a4449'
-                        }}
-                        onMouseEnter={() => handleMouseEnterEpisode(episode)}
-                        onClick={() => episode.id && window.open(`https://www.imdb.com/title/${episode.id}`, '_blank')}
+                    <div
+                      key={episode.id || `${season.seasonNumber}-${episode.episode}`}
+                      className="w-10 h-10 shrink-0 rounded-md cursor-pointer transition-all duration-100 hover:scale-110 hover:z-20 hover:ring-2 hover:ring-white/80 shadow-sm flex items-center justify-center"
+                      style={{
+                        backgroundColor: bgColor || '#1e2529',
+                        border: hasRating ? 'none' : '1px dashed #3a4449'
+                      }}
+                      onMouseEnter={() => handleMouseEnterEpisode(episode)}
+                      onClick={() => episode.id && window.open(`https://www.imdb.com/title/${episode.id}`, '_blank')}
+                    >
+                      <span
+                        className={`text-xs font-bold ${hasRating ? 'text-slate-900/80' : 'text-text-muted'
+                          }`}
                       >
-                        <span
-                          className={`text-xs font-bold ${hasRating
-                            ? 'text-slate-900/80'
-                            : 'text-text-muted'
-                            }`}
-                        >
-                          {hasRating ? episode.rating.toFixed(1) : '–'}
-                        </span>
-                      </div>
-                    </td>
+                        {hasRating ? episode.rating.toFixed(1) : '–'}
+                      </span>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-            {/* Season averages row */}
-            <tr>
-              <td className="sticky left-0 bg-[#0d1114] px-2 py-1.5 text-[10px] font-bold text-text-muted uppercase tracking-wider text-center">
-                AVG
-              </td>
-              {seasonData.seasons.map((season) => (
-                <td
-                  key={`avg-${season.seasonNumber}`}
-                  className="px-0.5 py-1.5 text-xs font-mono text-text-muted font-semibold text-center"
-                >
+
+                {/* Season Average (Right Side) */}
+                <div className="w-12 h-10 shrink-0 flex items-center justify-center text-[11px] font-mono text-text-muted font-semibold bg-surface/50 rounded ml-1">
                   {season.averageRating}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <EpisodeTooltip ref={tooltipRef} episode={hoveredEpisode} />

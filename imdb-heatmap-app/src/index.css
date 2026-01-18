@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* Custom theme configuration for IMDB Heatmap */
+@theme {
+    --color-bg: #0f1214;
+    --color-bg-alt: #161a1d;
+    --color-surface: #1d2326;
+    --color-surface-alt: #1f2427;
+    --color-border: #2a3135;
+    --color-text: #d6d9db;
+    --color-text-muted: #7d8589;
+    --color-accent: #cc8f2c;
+    --color-danger: #b64032;
+
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "Fira Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+/* Base styles */
+html,
+body,
+#root {
+    @apply min-h-screen bg-bg text-text antialiased;
+    font-family: var(--font-sans);
+}
+
+/* D3 Tooltip - must remain as CSS for D3 to reference */
+.tooltip {
+    @apply absolute pointer-events-none bg-[#111618] text-text px-2 py-1.5 border border-[#2e3538] text-xs rounded shadow-lg;
+    font-family: var(--font-sans);
+    line-height: 1.2;
+}
+
+/* Scrollbar styling */
+.heatmap-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+
+.heatmap-scroll::-webkit-scrollbar-track {
+    @apply bg-[#14181a];
+}
+
+.heatmap-scroll::-webkit-scrollbar-thumb {
+    @apply bg-[#2e3538] hover:bg-[#3b4447];
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton {
+    @apply relative overflow-hidden h-3.5 w-30 rounded text-transparent;
+    background: linear-gradient(90deg, #1a1f22 25%, #242b2e 50%, #1a1f22 75%);
+    background-size: 200% 100%;
+    animation: skeleton 1.2s linear infinite;
+}

@@ -98,15 +98,17 @@ def get_show():
     imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
     if not imdb_id:
         return jsonify({'error': 'IMDB ID not provided'}), 400
+    track_view = request.args.get('trackView', '1') == '1'
         
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if show:
         # Increment view count for popularity tracking
-        show.view_count = (show.view_count or 0) + 1
-        session.commit()
+        if track_view:
+            show.view_count = (show.view_count or 0) + 1
+            session.commit()
         return get_show_data(imdb_id)
     else:
-        return fetch_and_store_show(imdb_id)
+        return fetch_and_store_show(imdb_id, track_view=track_view)
 
 def get_show_data(imdb_id):
     """Helper to fetch show data from DB and format it for the API response."""

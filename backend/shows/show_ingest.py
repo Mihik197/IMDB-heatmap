@@ -9,14 +9,14 @@ from .show_helpers import _parse_votes, _now_utc_naive, _build_episode_from_omdb
 from .show_enrich import _imdb_enrich_show, _enrichment_in_progress, _enrichment_lock
 
 
-def fetch_and_store_show(imdb_id):
+def fetch_and_store_show(imdb_id, track_view=False):
     """
     Standard path to fetch a show from OMDb, scrape IMDb for missing ratings,
     and store everything in the database.
     """
     # Gate: if FAST_INGEST enabled use new path
     if os.getenv('FAST_INGEST') == '1':
-        return fast_fetch_and_store_show(imdb_id)
+        return fast_fetch_and_store_show(imdb_id, track_view=track_view)
 
     apiKey = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
@@ -39,7 +39,8 @@ def fetch_and_store_show(imdb_id):
             imdb_rating=parse_float(data.get('imdbRating')),
             imdb_votes=_parse_votes(data.get('imdbVotes')),
             poster=data.get('Poster'),
-            last_full_refresh=_now_utc_naive()
+            last_full_refresh=_now_utc_naive(),
+            view_count=1 if track_view else 0
         )
         session.add(show)
         session.commit()
@@ -67,7 +68,7 @@ def fetch_and_store_show(imdb_id):
     return jsonify({'error': 'Failed to fetch show data'}), 500
 
 
-def fast_fetch_and_store_show(imdb_id):
+def fast_fetch_and_store_show(imdb_id, track_view=False):
     """Fast ingest path: quickly stores OMDb data and spawns a background thread for IMDb enrichment."""
     apiKey = os.getenv('VITE_API_KEY')
     series_url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
@@ -97,7 +98,8 @@ def fast_fetch_and_store_show(imdb_id):
         imdb_rating=parse_float(meta.get('imdbRating')),
         imdb_votes=_parse_votes(meta.get('imdbVotes')),
         poster=meta.get('Poster'),
-        last_full_refresh=_now_utc_naive()
+        last_full_refresh=_now_utc_naive(),
+        view_count=1 if track_view else 0
     )
     session.add(show)
     session.commit()

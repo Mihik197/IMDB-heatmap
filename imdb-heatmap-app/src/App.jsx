@@ -58,7 +58,7 @@ function App() {
             setLoadingEpisodes(true);
             const epController = new AbortController();
             episodesAbortRef.current = epController;
-            fetch(`http://localhost:5000/getShow?imdbID=${currentID}`, { signal: epController.signal })
+            fetch(`http://localhost:5000/getShow?imdbID=${currentID}&trackView=1`, { signal: epController.signal })
               .then(r => r.json())
               .then(full => { if (!epController.signal.aborted) { if (full && !full.error) setData(full); else setError(full?.error || 'Fetch failed'); } })
               .catch(e => { if (e.name !== 'AbortError') setError('Fetch failed'); })
@@ -90,7 +90,7 @@ function App() {
     if (!data?.imdbID) return; setRefreshingMissing(true);
     fetch(`http://localhost:5000/refresh/missing?imdbID=${data.imdbID}`, { method: 'POST' })
       .then(r => r.json())
-      .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`))
+      .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
       .then(r => r.json())
       .then(full => setData(full))
       .catch(() => {/* silent */ })
@@ -101,7 +101,7 @@ function App() {
     if (!data?.imdbID) return; setRefreshingMissing(true);
     fetch(`http://localhost:5000/refresh/show?imdbID=${data.imdbID}`, { method: 'POST' })
       .then(r => r.json())
-      .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`))
+      .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
       .then(r => r.json())
       .then(full => setData(full))
       .finally(() => setRefreshingMissing(false));
@@ -124,7 +124,7 @@ function App() {
     const tick = () => {
       if (pollStopRef.current) return;
       attempts += 1;
-      fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}`, { headers: { 'Cache-Control': 'no-cache', ...(etagRef.current ? { 'If-None-Match': etagRef.current } : {}) } })
+      fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`, { headers: { 'Cache-Control': 'no-cache', ...(etagRef.current ? { 'If-None-Match': etagRef.current } : {}) } })
         .then(async r => {
           if (r.status === 304) {
             return null;

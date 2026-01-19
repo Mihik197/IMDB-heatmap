@@ -52,7 +52,7 @@ def process_show_refresh(imdb_id):
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
         from .show_ingest import fetch_and_store_show
-        return fetch_and_store_show(imdb_id)
+        return fetch_and_store_show(imdb_id, track_view=False)
 
     series_url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     series_resp = services.throttled_omdb_get(series_url)

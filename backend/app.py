@@ -27,7 +27,6 @@ from database import (
     Show
 )
 
-# Load environment variables
 load_dotenv()
 
 @asynccontextmanager

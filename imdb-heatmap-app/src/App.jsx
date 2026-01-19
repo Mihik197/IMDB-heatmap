@@ -141,8 +141,9 @@ function App() {
             } else {
               const merged = { ...data };
               let changed = false;
-              merged.episodes = data.episodes.map((ep, idx) => {
-                const next = full.episodes[idx];
+              const fullByKey = new Map(full.episodes.map(ep => [`${ep.season}-${ep.episode}`, ep]));
+              merged.episodes = data.episodes.map((ep) => {
+                const next = fullByKey.get(`${ep.season}-${ep.episode}`);
                 if (!next) return ep;
                 if (ep.rating !== next.rating || ep.votes !== next.votes || ep.title !== next.title) {
                   changed = true;

@@ -68,10 +68,12 @@ def process_show_refresh(imdb_id):
 
     total = show.total_seasons
     updated = 0
+    fetched_any = False
     for season in range(1, total + 1):
         season_data = services.fetch_season_from_omdb(apiKey, imdb_id, season)
         if not season_data:
             continue
+        fetched_any = True
 
         eps_list = season_data.get('Episodes', []) or []
         quick_count = len(eps_list)
@@ -153,7 +155,7 @@ def process_show_refresh(imdb_id):
                 _recompute_season_signature(session, show.id, season)
                 updated += 1
 
-    if updated:
+    if fetched_any:
         show.last_full_refresh = _now_utc_naive()
     show.last_updated = _now_utc_naive()
     session.commit()

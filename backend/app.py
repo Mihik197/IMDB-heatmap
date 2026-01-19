@@ -119,7 +119,7 @@ def get_show_data(imdb_id):
     except Exception:
         pass # Handle detached instance error if occurs
         
-    episodes = session.query(Episode).filter_by(show_id=show.id).all()
+    episodes = session.query(Episode).filter_by(show_id=show.id).order_by(Episode.season, Episode.episode).all()
     incomplete = any(ep.rating is None for ep in episodes)
     metadata_stale = is_show_metadata_stale(show)
     episodes_stale_count = sum(1 for ep in episodes if is_episode_stale(ep))

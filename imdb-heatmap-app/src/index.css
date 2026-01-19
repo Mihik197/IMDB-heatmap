@@ -334,3 +334,39 @@ body,
 .gradient-fade-t {
     background: linear-gradient(to top, transparent 0%, var(--color-bg) 100%);
 }
+
+/* ============================================
+   Discover Section
+   ============================================ */
+
+.discover-card {
+    @apply flex-shrink-0 w-[140px] bg-surface border border-border rounded-xl overflow-hidden cursor-pointer;
+    transition: all 0.2s ease;
+}
+
+.discover-card:hover {
+    @apply border-border-focus;
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-glow), var(--shadow-md);
+}
+
+.discover-card-poster {
+    @apply relative w-full h-[180px] overflow-hidden;
+}
+
+.discover-card-skeleton {
+    @apply flex-shrink-0 w-[140px] bg-surface border border-border rounded-xl overflow-hidden;
+}
+
+.discover-card-poster-skeleton {
+    @apply w-full h-[180px];
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

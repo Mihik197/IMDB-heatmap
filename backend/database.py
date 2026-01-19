@@ -22,6 +22,8 @@ class Show(Base):
     year = Column(String)                # original year string from OMDb (may contain range)
     imdb_rating = Column(Float)          # series aggregate rating
     imdb_votes = Column(Integer)         # aggregate vote count
+    view_count = Column(Integer, default=0)  # track app-level popularity
+    poster = Column(String)              # poster URL from OMDb
     last_full_refresh = Column(DateTime) # when full metadata + all seasons last fetched
     last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -64,7 +66,8 @@ def ensure_columns():
         return any(row[1] == name for row in cur.fetchall())
     # shows table additions
     new_show_cols = [
-        ('genres','TEXT'), ('year','TEXT'), ('imdb_rating','REAL'), ('imdb_votes','INTEGER'), ('last_full_refresh','DATETIME')
+        ('genres','TEXT'), ('year','TEXT'), ('imdb_rating','REAL'), ('imdb_votes','INTEGER'), ('last_full_refresh','DATETIME'),
+        ('view_count','INTEGER'), ('poster','TEXT')
     ]
     for col, typ in new_show_cols:
         if not column_exists('shows', col):

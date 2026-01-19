@@ -22,6 +22,146 @@ IMDB_SEASON_TTL = 300    # seconds
 _search_cache = {}       # key: query_lower -> (timestamp, data)
 SEARCH_TTL = 60
 
+# Trending shows cache
+_trending_cache = {'data': None, 'timestamp': 0}
+TRENDING_TTL = 86400  # 24 hours
+
+
+def get_trending_shows(limit=15):
+    """Scrape IMDB's most popular TV shows chart. Cached for 24 hours."""
+    now = time.time()
+    if _trending_cache['data'] and (now - _trending_cache['timestamp']) < TRENDING_TTL:
+        return _trending_cache['data'][:limit]
+    
+    url = 'https://www.imdb.com/chart/tvmeter/'
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9'
+        })
+    except requests.RequestException as e:
+        print(f"[get_trending_shows] network error: {e}")
+        return []
+    
+    if resp.status_code != 200:
+        print(f"[get_trending_shows] status {resp.status_code}")
+        return []
+    
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    shows = []
+    
+    # Try parsing __NEXT_DATA__ JSON first (most reliable)
+    try:
+        next_data_script = soup.find('script', id='__NEXT_DATA__')
+        if next_data_script and next_data_script.string:
+            data = json.loads(next_data_script.string.strip())
+            # Navigate to chart entries
+            chart_titles = None
+            # Common paths in IMDB's Next.js structure
+            paths_to_try = [
+                ['props', 'pageProps', 'pageData', 'chartTitles', 'edges'],
+                ['props', 'pageProps', 'chartTitles', 'edges'],
+            ]
+            for path in paths_to_try:
+                cur = data
+                for p in path:
+                    if isinstance(cur, dict) and p in cur:
+                        cur = cur[p]
+                    else:
+                        cur = None
+                        break
+                if isinstance(cur, list) and len(cur) > 0:
+                    chart_titles = cur
+                    break
+            
+            if chart_titles:
+                for edge in chart_titles[:limit]:
+                    node = edge.get('node', edge)
+                    if not node:
+                        continue
+                    imdb_id = node.get('id') or node.get('tconst')
+                    title_text = node.get('titleText', {})
+                    title = title_text.get('text') if isinstance(title_text, dict) else None
+                    if not title:
+                        title = node.get('originalTitleText', {}).get('text')
+                    
+                    # Get year
+                    release_year = node.get('releaseYear', {})
+                    year = str(release_year.get('year', '')) if isinstance(release_year, dict) else ''
+                    
+                    # Get rating
+                    ratings = node.get('ratingsSummary', {})
+                    rating = ratings.get('aggregateRating') if isinstance(ratings, dict) else None
+                    
+                    # Get poster
+                    primary_image = node.get('primaryImage', {})
+                    poster = primary_image.get('url') if isinstance(primary_image, dict) else None
+                    
+                    if imdb_id and title:
+                        shows.append({
+                            'imdbID': imdb_id,
+                            'title': title,
+                            'year': year,
+                            'imdbRating': rating,
+                            'poster': poster
+                        })
+    except Exception as e:
+        print(f"[get_trending_shows] JSON parse error: {e}")
+    
+    # Fallback: DOM parsing
+    if not shows:
+        # Try multiple selectors for chart items
+        chart_items = soup.select('li.ipc-metadata-list-summary-item') or soup.select('.chart-container li')
+        for item in chart_items[:limit]:
+            try:
+                # Find title link
+                link = item.find('a', href=re.compile(r'/title/tt\d+'))
+                if not link:
+                    continue
+                href = link.get('href', '')
+                m = re.search(r'/title/(tt\d+)', href)
+                if not m:
+                    continue
+                imdb_id = m.group(1)
+                title = link.get_text(strip=True)
+                
+                # Find year
+                year_span = item.find('span', class_=re.compile(r'year|date'))
+                year = year_span.get_text(strip=True) if year_span else ''
+                
+                # Find rating
+                rating_span = item.find('span', class_=re.compile(r'rating'))
+                rating = None
+                if rating_span:
+                    try:
+                        rating = float(rating_span.get_text(strip=True))
+                    except:
+                        pass
+                
+                # Find poster
+                img = item.find('img')
+                poster = img.get('src') if img else None
+                
+                if imdb_id and title:
+                    shows.append({
+                        'imdbID': imdb_id,
+                        'title': title,
+                        'year': year,
+                        'imdbRating': rating,
+                        'poster': poster
+                    })
+            except Exception:
+                continue
+    
+    if shows:
+        _trending_cache['data'] = shows
+        _trending_cache['timestamp'] = now
+        print(f"[get_trending_shows] cached {len(shows)} shows")
+    else:
+        print("[get_trending_shows] no shows found")
+    
+    return shows[:limit]
+
 def throttled_omdb_get(url, timeout=10):
     global _last_omdb_call
     with _omdb_lock:

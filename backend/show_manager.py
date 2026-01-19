@@ -54,6 +54,7 @@ def fetch_and_store_show(imdb_id):
             year=data.get('Year'),
             imdb_rating=parse_float(data.get('imdbRating')),
             imdb_votes=int(data.get('imdbVotes').replace(',','')) if data.get('imdbVotes') and data.get('imdbVotes').replace(',','').isdigit() else None,
+            poster=data.get('Poster'),
             last_full_refresh=datetime.now(UTC).replace(tzinfo=None)
         )
         session.add(show)
@@ -131,6 +132,7 @@ def fast_fetch_and_store_show(imdb_id):
         year=meta.get('Year'),
         imdb_rating=parse_float(meta.get('imdbRating')),
         imdb_votes=int(meta.get('imdbVotes').replace(',','')) if meta.get('imdbVotes') and meta.get('imdbVotes').replace(',','').isdigit() else None,
+        poster=meta.get('Poster'),
         last_full_refresh=datetime.now(UTC).replace(tzinfo=None)
     )
     session.add(show)

@@ -4,6 +4,7 @@ import SearchBar from './SearchBar'
 import HeatMap from './HeatMap'
 import Header from './Header'
 import RecentShows from './RecentShows'
+import DiscoverSection from './DiscoverSection'
 import Icon from './Icon'
 
 function App() {
@@ -325,7 +326,20 @@ function App() {
 
         {stillLoading && !baseMeta && <div className="skeleton mt-4">Loading…</div>}
 
-        <RecentShows onSelect={(title) => handleSearch({ title })} />
+        {/* Show discover sections when no show is selected */}
+        {!baseMeta && !stillLoading && (
+          <>
+            <DiscoverSection onSelect={(item) => handleSearch(item)} />
+            <RecentShows onSelect={(title) => handleSearch({ title })} />
+          </>
+        )}
+
+        {/* Show recent shows below heatmap when viewing a show */}
+        {baseMeta && !baseMeta.error && (
+          <div className="mt-8">
+            <RecentShows onSelect={(title) => handleSearch({ title })} />
+          </div>
+        )}
       </main>
     </div>
   )

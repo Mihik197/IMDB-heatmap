@@ -95,6 +95,9 @@ def get_show():
         
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if show:
+        # Increment view count for popularity tracking
+        show.view_count = (show.view_count or 0) + 1
+        session.commit()
         return get_show_data(imdb_id)
     else:
         return show_manager.fetch_and_store_show(imdb_id)
@@ -196,6 +199,138 @@ def refresh_metadata_only():
     if not imdb_id:
         return jsonify({'error': 'IMDB ID required'}), 400
     return show_manager.process_metadata_refresh(imdb_id)
+
+# --- Discovery Endpoints ---
+
+# Curated list of iconic TV shows with interesting heatmaps (just IDs and titles)
+FEATURED_SHOW_IDS = [
+    {'imdbID': 'tt0903747', 'title': 'Breaking Bad', 'year': '2008–2013'},
+    {'imdbID': 'tt0944947', 'title': 'Game of Thrones', 'year': '2011–2019'},
+    {'imdbID': 'tt0386676', 'title': 'The Office', 'year': '2005–2013'},
+    {'imdbID': 'tt0141842', 'title': 'The Sopranos', 'year': '1999–2007'},
+    {'imdbID': 'tt0306414', 'title': 'The Wire', 'year': '2002–2008'},
+    {'imdbID': 'tt0773262', 'title': 'Dexter', 'year': '2006–2013'},
+    {'imdbID': 'tt4574334', 'title': 'Stranger Things', 'year': '2016–'},
+    {'imdbID': 'tt1475582', 'title': 'Sherlock', 'year': '2010–2017'},
+    {'imdbID': 'tt2861424', 'title': 'Rick and Morty', 'year': '2013–'},
+    {'imdbID': 'tt0460649', 'title': 'How I Met Your Mother', 'year': '2005–2014'},
+    {'imdbID': 'tt0411008', 'title': 'Lost', 'year': '2004–2010'},
+    {'imdbID': 'tt1520211', 'title': 'The Walking Dead', 'year': '2010–2022'},
+    {'imdbID': 'tt0098904', 'title': 'Seinfeld', 'year': '1989–1998'},
+    {'imdbID': 'tt0108778', 'title': 'Friends', 'year': '1994–2004'},
+    {'imdbID': 'tt1856010', 'title': 'House of Cards', 'year': '2013–2018'},
+    {'imdbID': 'tt2356777', 'title': 'True Detective', 'year': '2014–'},
+]
+
+# Cache for featured show metadata
+_featured_cache = {'data': None, 'timestamp': 0}
+FEATURED_CACHE_TTL = 86400  # 24 hours
+
+@app.route('/trending')
+def get_trending():
+    """Returns trending TV shows scraped from IMDB's chart."""
+    shows = services.get_trending_shows(limit=12)
+    return jsonify(shows)
+
+@app.route('/popular')
+def get_popular():
+    """Returns most viewed shows on this app."""
+    shows = session.query(Show).filter(Show.view_count > 0).order_by(Show.view_count.desc()).limit(12).all()
+    api_key = os.getenv('VITE_API_KEY')
+    result = []
+    
+    for s in shows:
+        poster = s.poster
+        
+        # If poster is missing, try to fetch from OMDb and save it
+        if not poster:
+            try:
+                url = f'http://www.omdbapi.com/?apikey={api_key}&i={s.imdb_id}'
+                resp = services.throttled_omdb_get(url, timeout=5)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get('Response') == 'True':
+                        poster = data.get('Poster')
+                        if poster and poster != 'N/A':
+                            # Save poster to DB for future requests
+                            s.poster = poster
+                            session.commit()
+            except Exception as e:
+                print(f"[popular] fetch error for {s.imdb_id}: {e}")
+        
+        result.append({
+            'imdbID': s.imdb_id,
+            'title': s.title,
+            'year': s.year,
+            'imdbRating': s.imdb_rating,
+            'genres': s.genres,
+            'poster': poster
+        })
+    
+    return jsonify(result)
+
+@app.route('/featured')
+def get_featured():
+    """Returns curated list of iconic TV shows with fresh poster/rating data."""
+    now = time.time()
+    
+    # Return cached data if still valid
+    if _featured_cache['data'] and (now - _featured_cache['timestamp']) < FEATURED_CACHE_TTL:
+        return jsonify(_featured_cache['data'])
+    
+    api_key = os.getenv('VITE_API_KEY')
+    enriched_shows = []
+    
+    for show_info in FEATURED_SHOW_IDS:
+        imdb_id = show_info['imdbID']
+        
+        # First check if we have fresh data in the database
+        db_show = session.query(Show).filter_by(imdb_id=imdb_id).first()
+        if db_show and db_show.poster and db_show.imdb_rating:
+            enriched_shows.append({
+                'imdbID': imdb_id,
+                'title': db_show.title or show_info['title'],
+                'year': db_show.year or show_info['year'],
+                'poster': db_show.poster,
+                'imdbRating': db_show.imdb_rating
+            })
+            continue
+        
+        # Otherwise fetch from OMDb
+        try:
+            url = f'http://www.omdbapi.com/?apikey={api_key}&i={imdb_id}'
+            resp = services.throttled_omdb_get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('Response') == 'True':
+                    poster = data.get('Poster')
+                    rating = data.get('imdbRating')
+                    if poster and poster != 'N/A':
+                        enriched_shows.append({
+                            'imdbID': imdb_id,
+                            'title': data.get('Title', show_info['title']),
+                            'year': data.get('Year', show_info['year']),
+                            'poster': poster,
+                            'imdbRating': float(rating) if rating and rating != 'N/A' else None
+                        })
+                        continue
+        except Exception as e:
+            print(f"[featured] fetch error for {imdb_id}: {e}")
+        
+        # Fallback to basic info without poster
+        enriched_shows.append({
+            'imdbID': imdb_id,
+            'title': show_info['title'],
+            'year': show_info['year'],
+            'poster': None,
+            'imdbRating': None
+        })
+    
+    # Cache the results
+    _featured_cache['data'] = enriched_shows
+    _featured_cache['timestamp'] = now
+    
+    return jsonify(enriched_shows)
 
 
 # --- Debug Endpoints ---

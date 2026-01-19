@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './Icon';
 
 const RecentShows = ({ onSelect }) => {
   let items = [];
@@ -9,23 +10,47 @@ const RecentShows = ({ onSelect }) => {
     // Fail silently; keep empty list.
   }
   if (!items.length) return null;
+
   return (
-    <section className="mt-2" aria-label="Recently viewed shows">
-      <h2 className="text-[10px] font-mono font-semibold tracking-widest text-text-muted mb-2 uppercase">Recently Viewed</h2>
-      <div className="flex flex-wrap gap-2 pb-1">
+    <section className="mt-8" aria-label="Recently viewed shows">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon name="clock" size={14} className="text-text-dim" />
+        <h2 className="text-xs font-mono font-bold tracking-widest text-text-muted uppercase">
+          Recently Viewed
+        </h2>
+      </div>
+      <div className="flex flex-wrap gap-3">
         {items.map(item => (
           <button
             key={item.imdbID}
-            className="bg-surface-alt border border-border text-text p-2 rounded flex flex-col gap-1 w-[140px] cursor-pointer text-left transition-colors hover:bg-[#252b2e]"
+            className="card card-glow p-2.5 w-[150px] text-left transition-all duration-200 hover:-translate-y-1 group"
             onClick={() => onSelect && onSelect(item.title)}
             type="button"
             aria-label={`Load ${item.title}`}
           >
             {item.poster && item.poster !== 'N/A' && (
-              <img src={item.poster} alt="" loading="lazy" className="w-full h-[135px] object-cover rounded" />
+              <div className="relative mb-2 rounded-lg overflow-hidden">
+                <img
+                  src={item.poster}
+                  alt=""
+                  loading="lazy"
+                  className="w-full h-[140px] object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex items-center gap-1 text-[10px] text-white/90 font-mono">
+                    <Icon name="play" size={10} />
+                    <span>View heatmap</span>
+                  </div>
+                </div>
+              </div>
             )}
-            <span className="font-semibold text-[11px] leading-tight overflow-hidden text-ellipsis whitespace-nowrap">{item.title}</span>
-            {item.year && <span className="font-mono text-[10px] text-text-muted">{item.year}</span>}
+            <span className="block font-heading font-semibold text-xs leading-tight text-text truncate">
+              {item.title}
+            </span>
+            {item.year && (
+              <span className="block font-mono text-[10px] text-text-muted mt-0.5">{item.year}</span>
+            )}
           </button>
         ))}
       </div>

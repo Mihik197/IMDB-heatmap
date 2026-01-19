@@ -1,6 +1,6 @@
 import os
 import threading
-from flask import jsonify
+from fastapi.responses import JSONResponse
 
 from database import session, Show
 import services
@@ -22,12 +22,12 @@ def fetch_and_store_show(imdb_id, track_view=False):
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     response = services.throttled_omdb_get(url)
     if response.status_code != 200:
-        return jsonify({'error': 'Failed to fetch show data'}), 500
+        return JSONResponse({'error': 'Failed to fetch show data'}, status_code=500)
 
     data = safe_json(response)
     if data is None:
         print(f"[fetch_show] JSON decode failure imdb_id={imdb_id}")
-        return jsonify({'error': 'Upstream JSON parse failure'}), 502
+        return JSONResponse({'error': 'Upstream JSON parse failure'}, status_code=502)
 
     if data.get('Response') == 'True':
         show = Show(
@@ -65,7 +65,7 @@ def fetch_and_store_show(imdb_id, track_view=False):
         from app import get_show_data
         return get_show_data(imdb_id)
 
-    return jsonify({'error': 'Failed to fetch show data'}), 500
+    return JSONResponse({'error': 'Failed to fetch show data'}, status_code=500)
 
 
 def fast_fetch_and_store_show(imdb_id, track_view=False):
@@ -75,14 +75,14 @@ def fast_fetch_and_store_show(imdb_id, track_view=False):
     try:
         resp = services.throttled_omdb_get(series_url, timeout=10)
     except Exception:
-        return jsonify({'error': 'Upstream failure'}), 502
+        return JSONResponse({'error': 'Upstream failure'}, status_code=502)
 
     if resp.status_code != 200:
-        return jsonify({'error': 'Upstream status'}), 502
+        return JSONResponse({'error': 'Upstream status'}, status_code=502)
 
     meta = safe_json(resp)
     if not meta or meta.get('Response') != 'True':
-        return jsonify({'error': 'Not found'}), 404
+        return JSONResponse({'error': 'Not found'}, status_code=404)
 
     try:
         total_seasons = int(meta.get('totalSeasons', 0))

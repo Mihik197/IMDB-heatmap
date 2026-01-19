@@ -1,6 +1,8 @@
 # app.py
-from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS
+from fastapi import FastAPI, Query, Header, Response
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 import time
@@ -30,36 +32,50 @@ from database import (
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
-CORS(app)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    ensure_columns()
+    ensure_indices()
+    worker.start_background_maintenance()
+    yield
 
-@app.route('/search')
-def search_titles():
+
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get('/search')
+def search_titles(q: str = Query('', alias='q'), page: str = Query('1', alias='page')):
     """Lightweight search proxy for autocomplete."""
-    query = request.args.get('q', '').strip()
-    page = request.args.get('page', '1')
+    query = (q or '').strip()
     if not query:
-        return jsonify([])
+        return []
     
     ql = query.lower()
     now = time.time()
     cached = services._search_cache.get(ql)
     if cached and (now - cached[0]) < services.SEARCH_TTL:
-        return jsonify(cached[1])
+        return cached[1]
         
     api_key = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={api_key}&s={query}&type=series&page={page}'
     try:
         resp = services.throttled_omdb_get(url, timeout=8)
     except Exception:
-        return jsonify([])
+        return []
         
     if resp.status_code != 200:
-        return jsonify([])
+        return []
         
     data = resp.json()
     if data.get('Response') != 'True':
-        return jsonify([])
+        return []
         
     results = [{
         'title': item.get('Title'),
@@ -69,36 +85,39 @@ def search_titles():
     } for item in data.get('Search', [])[:10]]
     
     services._search_cache[ql] = (now, results)
-    return jsonify(results)
+    return results
 
-@app.route("/getShowByTitle")
-def get_show_by_title():
-    title = request.args.get('title')
+@app.get("/getShowByTitle")
+def get_show_by_title(title: str = Query(None, alias='title')):
     if not title:
-        return jsonify({'error': 'Title not provided'}), 400
+        return JSONResponse({'error': 'Title not provided'}, status_code=400)
 
     apiKey = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&t={title}'
     response = services.throttled_omdb_get(url)
     
     if response.status_code != 200:
-        return jsonify({'error': 'Failed to fetch show data'}), 500
+        return JSONResponse({'error': 'Failed to fetch show data'}, status_code=500)
 
     data = safe_json(response)
     if data is None:
-        return jsonify({'error': 'Upstream JSON parse failure'}), 502
+        return JSONResponse({'error': 'Upstream JSON parse failure'}, status_code=502)
         
     if data.get('Response') == 'True':
-        return jsonify(data)
+        return data
     else:
-        return jsonify({'error': data.get('Error', 'Failed to fetch show data')}), 500
+        return JSONResponse({'error': data.get('Error', 'Failed to fetch show data')}, status_code=500)
 
-@app.route("/getShow")
-def get_show():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.get("/getShow")
+def get_show(
+    imdbID: str = Query(None, alias='imdbID'),
+    trackView: str = Query('1', alias='trackView'),
+    if_none_match: str | None = Header(None, alias='If-None-Match')
+):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'IMDB ID not provided'}), 400
-    track_view = request.args.get('trackView', '1') == '1'
+        return JSONResponse({'error': 'IMDB ID not provided'}, status_code=400)
+    track_view = trackView == '1'
         
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if show:
@@ -106,15 +125,15 @@ def get_show():
         if track_view:
             show.view_count = (show.view_count or 0) + 1
             session.commit()
-        return get_show_data(imdb_id)
+        return get_show_data(imdb_id, if_none_match)
     else:
         return fetch_and_store_show(imdb_id, track_view=track_view)
 
-def get_show_data(imdb_id):
+def get_show_data(imdb_id, if_none_match: str | None = None):
     """Helper to fetch show data from DB and format it for the API response."""
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
-        return jsonify({'error': 'Show not found in DB'}), 404
+        return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
         
     try:
         session.refresh(show)
@@ -129,10 +148,8 @@ def get_show_data(imdb_id):
     provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
     
     etag_val = f"{int(show.last_updated.timestamp()) if show.last_updated else 0}:{len(episodes)}:{show.total_seasons}:{absent_count}"
-    if request.headers.get('If-None-Match') == etag_val:
-        resp = make_response('', 304)
-        resp.headers['ETag'] = etag_val
-        return resp
+    if if_none_match == etag_val:
+        return Response(status_code=304, headers={'ETag': etag_val})
         
     payload = {
         'title': show.title, 'imdbID': show.imdb_id, 'totalSeasons': show.total_seasons,
@@ -154,58 +171,56 @@ def get_show_data(imdb_id):
         'provisionalEpisodesCount': provisional_count
     }
     
-    resp = jsonify(payload)
-    resp.headers['ETag'] = etag_val
-    resp.headers['Cache-Control'] = 'public, max-age=5'
-    return resp
+    return JSONResponse(
+        content=payload,
+        headers={'ETag': etag_val, 'Cache-Control': 'public, max-age=5'}
+    )
 
-@app.route('/getShowMeta')
-def get_show_meta():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.get('/getShowMeta')
+def get_show_meta(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'IMDB ID not provided'}), 400
+        return JSONResponse({'error': 'IMDB ID not provided'}, status_code=400)
 
     apiKey = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     try:
         resp = services.throttled_omdb_get(url, timeout=10)
     except Exception:
-        return jsonify({'error': 'Upstream failure'}), 502
+        return JSONResponse({'error': 'Upstream failure'}, status_code=502)
     
     if resp.status_code != 200:
-        return jsonify({'error': 'Upstream status'}), 502
+        return JSONResponse({'error': 'Upstream status'}, status_code=502)
         
     data = safe_json(resp)
     if not data or data.get('Response') != 'True':
-        return jsonify({'error': 'Not found'}), 404
+        return JSONResponse({'error': 'Not found'}, status_code=404)
         
     subset = {
         'Title': data.get('Title'), 'Year': data.get('Year'), 'Poster': data.get('Poster'),
         'Plot': data.get('Plot'), 'imdbID': data.get('imdbID'), 'totalSeasons': data.get('totalSeasons')
     }
-    resp = jsonify(subset)
-    resp.headers['Cache-Control'] = 'public, max-age=30'
-    return resp
+    return JSONResponse(content=subset, headers={'Cache-Control': 'public, max-age=30'})
 
-@app.route('/refresh/missing', methods=['POST'])
-def refresh_missing():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.post('/refresh/missing')
+def refresh_missing(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'IMDB ID required'}), 400
+        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
     return process_missing_refresh(imdb_id)
 
-@app.route('/refresh/show', methods=['POST'])
-def refresh_show():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.post('/refresh/show')
+def refresh_show(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'IMDB ID required'}), 400
+        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
     return process_show_refresh(imdb_id)
 
-@app.route('/refresh/metadata', methods=['POST'])
-def refresh_metadata_only():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.post('/refresh/metadata')
+def refresh_metadata_only(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'IMDB ID required'}), 400
+        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
     return process_metadata_refresh(imdb_id)
 
 # --- Discovery Endpoints ---
@@ -216,13 +231,13 @@ from featured_shows import FEATURED_SHOW_IDS
 _featured_cache = {'data': None, 'timestamp': 0}
 FEATURED_CACHE_TTL = 86400  # 24 hours
 
-@app.route('/trending')
+@app.get('/trending')
 def get_trending():
     """Returns trending TV shows scraped from IMDB's chart."""
     shows = services.get_trending_shows()
-    return jsonify(shows)
+    return shows
 
-@app.route('/popular')
+@app.get('/popular')
 def get_popular():
     """Returns most viewed shows on this app."""
     shows = session.query(Show).filter(Show.view_count > 0).order_by(Show.view_count.desc()).limit(12).all()
@@ -257,9 +272,9 @@ def get_popular():
             'poster': poster
         })
     
-    return jsonify(result)
+    return result
 
-@app.route('/featured')
+@app.get('/featured')
 def get_featured():
     """Returns curated list of iconic TV shows - instant response, no blocking API calls."""
     import random
@@ -268,7 +283,7 @@ def get_featured():
     
     # Return cached data if still valid
     if _featured_cache['data'] and (now - _featured_cache['timestamp']) < FEATURED_CACHE_TTL:
-        return jsonify(_featured_cache['data'])
+        return _featured_cache['data']
     
     enriched_shows = []
     
@@ -304,52 +319,51 @@ def get_featured():
     _featured_cache['data'] = enriched_shows
     _featured_cache['timestamp'] = now
     
-    return jsonify(enriched_shows)
+    return enriched_shows
 
 
 # --- Debug Endpoints ---
 
-@app.route('/debug/scrapeRating')
-def debug_scrape_rating():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.get('/debug/scrapeRating')
+def debug_scrape_rating(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'imdbID required'}), 400
+        return JSONResponse({'error': 'imdbID required'}, status_code=400)
     rating = services.fetch_rating_from_imdb(imdb_id)
-    return jsonify({'imdbID': imdb_id, 'scrapedRating': rating})
+    return {'imdbID': imdb_id, 'scrapedRating': rating}
 
-@app.route('/debug/clearSeasonCache')
-def debug_clear_season_cache():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
+@app.get('/debug/clearSeasonCache')
+def debug_clear_season_cache(imdbID: str = Query(None, alias='imdbID')):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id:
-        return jsonify({'error': 'imdbID required'}), 400
+        return JSONResponse({'error': 'imdbID required'}, status_code=400)
     removed = 0
     keys = list(services._imdb_season_cache.keys())
     for k in keys:
         if k[0] == imdb_id:
             services._imdb_season_cache.pop(k, None)
             removed += 1
-    return jsonify({'cleared': removed})
+    return {'cleared': removed}
 
-@app.route('/debug/parseSeason')
-def debug_parse_season():
-    imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
-    season = request.args.get('season')
+@app.get('/debug/parseSeason')
+def debug_parse_season(
+    imdbID: str = Query(None, alias='imdbID'),
+    season: str = Query(None, alias='season')
+):
+    imdb_id = sanitize_imdb_id(imdbID)
     if not imdb_id or not season or not season.isdigit():
-        return jsonify({'error': 'imdbID and numeric season required'}), 400
+        return JSONResponse({'error': 'imdbID and numeric season required'}, status_code=400)
     key = (imdb_id, int(season))
     services._imdb_season_cache.pop(key, None)
     items = services.parse_imdb_season(imdb_id, int(season))
-    return jsonify({
+    return {
         'imdbID': imdb_id, 'season': int(season), 'count': len(items),
         'episodes': items,
         'rated': sum(1 for x in items if x.get('rating') is not None),
         'withVotes': sum(1 for x in items if x.get('votes') is not None)
-    })
+    }
 
 
 if __name__ == '__main__':
-    init_db()
-    ensure_columns()
-    ensure_indices()
-    worker.start_background_maintenance()
-    app.run(debug=True)
+    import uvicorn
+    uvicorn.run('app:app', host='0.0.0.0', port=5000, reload=True)

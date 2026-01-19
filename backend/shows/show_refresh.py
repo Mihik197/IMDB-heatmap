@@ -1,5 +1,5 @@
 import os
-from flask import jsonify
+from fastapi.responses import JSONResponse
 
 from database import session, Show, Episode, SeasonHash
 import services
@@ -18,7 +18,7 @@ def process_missing_refresh(imdb_id):
     apiKey = os.getenv('VITE_API_KEY')
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
-        return jsonify({'error': 'Show not found in DB'}), 404
+        return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
     missing_eps = session.query(Episode).filter_by(show_id=show.id, rating=None).all()
     updated = 0
     updated_seasons = set()
@@ -65,7 +65,7 @@ def process_missing_refresh(imdb_id):
         for season in updated_seasons:
             _recompute_season_signature(session, show.id, season)
         session.commit()
-    return jsonify({'updated': updated})
+    return {'updated': updated}
 
 
 def process_show_refresh(imdb_id):
@@ -180,25 +180,25 @@ def process_show_refresh(imdb_id):
         show.last_full_refresh = _now_utc_naive()
     show.last_updated = _now_utc_naive()
     session.commit()
-    return jsonify({'updated_seasons': updated})
+    return {'updated_seasons': updated}
 
 
 def process_metadata_refresh(imdb_id):
     apiKey = os.getenv('VITE_API_KEY')
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
-        return jsonify({'error': 'Show not found'}), 404
+        return JSONResponse({'error': 'Show not found'}, status_code=404)
 
     series_url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     series_resp = services.throttled_omdb_get(series_url)
     if series_resp.status_code != 200:
-        return jsonify({'error': 'Upstream error'}), 502
+        return JSONResponse({'error': 'Upstream error'}, status_code=502)
 
     sdata = safe_json(series_resp)
     if not sdata or sdata.get('Response') != 'True':
-        return jsonify({'error': 'No data'}), 502
+        return JSONResponse({'error': 'No data'}, status_code=502)
 
     _update_show_metadata_from_omdb(show, sdata)
     show.last_updated = _now_utc_naive()
     session.commit()
-    return jsonify({'status': 'metadata refreshed'})
+    return {'status': 'metadata refreshed'}

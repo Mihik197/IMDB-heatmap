@@ -21,28 +21,49 @@ def process_missing_refresh(imdb_id):
         return jsonify({'error': 'Show not found in DB'}), 404
     missing_eps = session.query(Episode).filter_by(show_id=show.id, rating=None).all()
     updated = 0
+    updated_seasons = set()
+    missing_by_season = {}
     for ep in missing_eps:
-        season_data = services.fetch_season_from_omdb(apiKey, imdb_id, ep.season)
-        if season_data:
-            for ep_data in season_data.get('Episodes', []):
-                if ep_data.get('Episode') and int(ep_data['Episode']) == ep.episode:
-                    rating = parse_float(ep_data.get('imdbRating'))
-                    if rating is None:
-                        scraped = services.fetch_rating_from_imdb(ep_data.get('imdbID'))
-                        rating = parse_float(scraped)
-                    if rating is not None:
-                        ep.rating = rating
-                        ep.missing = False
-                        ep.last_checked = _now_utc_naive()
-                        votes = _parse_votes(ep_data.get('imdbVotes'))
-                        if votes is not None:
-                            ep.votes = votes
-                        updated += 1
-                    else:
-                        ep.missing = True
-                        ep.last_checked = _now_utc_naive()
-                    break
+        missing_by_season.setdefault(ep.season, []).append(ep)
+
+    for season, eps in missing_by_season.items():
+        season_data = services.fetch_season_from_omdb(apiKey, imdb_id, season)
+        if not season_data:
+            continue
+        season_eps = season_data.get('Episodes', [])
+        omdb_map = {}
+        for ep_data in season_eps:
+            try:
+                ep_num = int(ep_data.get('Episode', 0))
+            except Exception:
+                continue
+            omdb_map[ep_num] = ep_data
+
+        for ep in eps:
+            ep_data = omdb_map.get(ep.episode)
+            if not ep_data:
+                continue
+            rating = parse_float(ep_data.get('imdbRating'))
+            if rating is None:
+                scraped = services.fetch_rating_from_imdb(ep_data.get('imdbID'))
+                rating = parse_float(scraped)
+            if rating is not None:
+                ep.rating = rating
+                ep.missing = False
+                ep.last_checked = _now_utc_naive()
+                votes = _parse_votes(ep_data.get('imdbVotes'))
+                if votes is not None:
+                    ep.votes = votes
+                updated += 1
+                updated_seasons.add(season)
+            else:
+                ep.missing = True
+                ep.last_checked = _now_utc_naive()
+
     if updated:
+        session.commit()
+        for season in updated_seasons:
+            _recompute_season_signature(session, show.id, season)
         session.commit()
     return jsonify({'updated': updated})
 

@@ -1,50 +1,149 @@
 @import "tailwindcss";
 
-/* Custom theme configuration for IMDB Heatmap */
-@theme {
-    --color-bg: #0f1214;
-    --color-bg-alt: #161a1d;
-    --color-surface: #1d2326;
-    --color-surface-alt: #1f2427;
-    --color-border: #2a3135;
-    --color-text: #d6d9db;
-    --color-text-muted: #7d8589;
-    --color-accent: #cc8f2c;
-    --color-danger: #b64032;
+/* ============================================
+   IMDB Heatmap — Premium Theme Configuration
+   ============================================ */
 
-    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-mono: "Fira Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+@theme {
+    /* Color Palette — Cinematic Dark Theme */
+    --color-bg: #08090a;
+    --color-bg-alt: #0d0f12;
+    --color-surface: #13161a;
+    --color-surface-alt: #1a1d22;
+    --color-surface-hover: #21252b;
+
+    /* Borders with subtle depth */
+    --color-border: #252830;
+    --color-border-focus: #3a3f4a;
+    --color-border-glow: #d4a85330;
+
+    /* Text — Warm off-whites */
+    --color-text: #e8e6e3;
+    --color-text-muted: #8a8884;
+    --color-text-dim: #5a5854;
+
+    /* Accent — Warm cinema gold */
+    --color-accent: #d4a853;
+    --color-accent-muted: #a88b42;
+    --color-accent-bright: #e8c068;
+
+    /* Semantic Colors */
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+
+    /* Typography — Premium Font Stack */
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-heading: "Sora", system-ui, sans-serif;
+    --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 20px rgba(212, 168, 83, 0.15);
 }
 
-/* Base styles */
+/* ============================================
+   Base Styles
+   ============================================ */
+
 html,
 body,
 #root {
     @apply min-h-screen bg-bg text-text antialiased;
     font-family: var(--font-sans);
+    letter-spacing: -0.01em;
 }
 
-/* D3 Tooltip - must remain as CSS for D3 to reference */
-.tooltip {
-    @apply absolute pointer-events-none bg-[#111618] text-text px-2 py-1.5 border border-[#2e3538] text-xs rounded shadow-lg;
-    font-family: var(--font-sans);
-    line-height: 1.2;
+/* ============================================
+   Typography Utilities
+   ============================================ */
+
+.font-display {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
 }
 
-/* Scrollbar styling */
-.heatmap-scroll::-webkit-scrollbar {
-    height: 10px;
+.font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
 }
 
-.heatmap-scroll::-webkit-scrollbar-track {
-    @apply bg-[#14181a];
+.font-mono {
+    font-family: var(--font-mono);
+    letter-spacing: 0;
 }
 
-.heatmap-scroll::-webkit-scrollbar-thumb {
-    @apply bg-[#2e3538] hover:bg-[#3b4447];
+/* ============================================
+   Glassmorphism
+   ============================================ */
+
+.glass {
+    background: rgba(19, 22, 26, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Skeleton loading animation */
+.glass-subtle {
+    background: rgba(19, 22, 26, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(212, 168, 83, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 16px 4px rgba(212, 168, 83, 0.15);
+    }
+}
+
 @keyframes skeleton {
     0% {
         background-position: 200% 0;
@@ -55,9 +154,183 @@ body,
     }
 }
 
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+}
+
+.animate-fade-in-scale {
+    animation: fadeInScale 0.15s ease-out;
+}
+
+.animate-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.04) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+.animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ============================================
+   D3 Tooltip (legacy CSS reference)
+   ============================================ */
+
+.tooltip {
+    @apply absolute pointer-events-none px-3 py-2 text-xs rounded-lg;
+    font-family: var(--font-sans);
+    background: rgba(13, 15, 18, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-lg);
+    line-height: 1.4;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+
+.heatmap-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.heatmap-scroll::-webkit-scrollbar-track {
+    @apply bg-bg-alt rounded-full;
+}
+
+.heatmap-scroll::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+    transition: background-color 0.2s;
+}
+
+.heatmap-scroll::-webkit-scrollbar-thumb:hover {
+    @apply bg-border-focus;
+}
+
+/* ============================================
+   Skeleton Loading
+   ============================================ */
+
 .skeleton {
-    @apply relative overflow-hidden h-3.5 w-30 rounded text-transparent;
-    background: linear-gradient(90deg, #1a1f22 25%, #242b2e 50%, #1a1f22 75%);
+    @apply relative overflow-hidden h-4 w-32 rounded text-transparent;
+    background: linear-gradient(90deg, #13161a 25%, #1a1d22 50%, #13161a 75%);
     background-size: 200% 100%;
     animation: skeleton 1.2s linear infinite;
+}
+
+/* ============================================
+   Interactive Elements
+   ============================================ */
+
+.btn {
+    @apply px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150;
+    font-family: var(--font-sans);
+}
+
+.btn-primary {
+    @apply bg-accent text-bg-alt;
+    box-shadow: 0 2px 8px rgba(212, 168, 83, 0.25);
+}
+
+.btn-primary:hover {
+    @apply brightness-110;
+    box-shadow: 0 4px 16px rgba(212, 168, 83, 0.35);
+}
+
+.btn-secondary {
+    @apply bg-surface-alt text-text border border-border;
+}
+
+.btn-secondary:hover {
+    @apply bg-surface-hover border-border-focus;
+}
+
+/* ============================================
+   Card Styles
+   ============================================ */
+
+.card {
+    @apply bg-surface border border-border rounded-xl;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    border-color: var(--color-border-focus);
+    box-shadow: var(--shadow-md);
+}
+
+.card-glow:hover {
+    box-shadow: var(--shadow-glow), var(--shadow-md);
+}
+
+/* ============================================
+   Badge Styles
+   ============================================ */
+
+.badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+}
+
+.badge-gold {
+    @apply bg-amber-900/30 text-amber-400 border border-amber-700/40;
+}
+
+.badge-blue {
+    @apply bg-blue-900/30 text-blue-400 border border-blue-700/40;
+}
+
+.badge-green {
+    @apply bg-emerald-900/30 text-emerald-400 border border-emerald-700/40;
+}
+
+.badge-red {
+    @apply bg-red-900/30 text-red-400 border border-red-700/40;
+}
+
+/* ============================================
+   Form Inputs
+   ============================================ */
+
+.input {
+    @apply px-4 py-2.5 bg-surface border border-border rounded-lg text-text text-sm transition-all duration-150;
+    font-family: var(--font-sans);
+}
+
+.input:focus {
+    @apply outline-none border-accent;
+    box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.15);
+}
+
+.input::placeholder {
+    @apply text-text-dim;
+}
+
+/* ============================================
+   Poster Image Styling
+   ============================================ */
+
+.poster {
+    @apply rounded-lg overflow-hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.poster:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   Gradient Overlays
+   ============================================ */
+
+.gradient-fade-b {
+    background: linear-gradient(to bottom, transparent 0%, var(--color-bg) 100%);
+}
+
+.gradient-fade-t {
+    background: linear-gradient(to top, transparent 0%, var(--color-bg) 100%);
 }

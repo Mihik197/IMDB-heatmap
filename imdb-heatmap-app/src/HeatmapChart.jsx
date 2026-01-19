@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import EpisodeTooltip from './EpisodeTooltip';
 
-// Vibrant color scale
+// Original vibrant color scale
 const colorScale = (rating) => {
   if (rating == null) return null;
   if (rating < 5.5) return '#ef4444';
@@ -88,19 +88,19 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
           {/* Header Row: Episode Numbers */}
           <div className="flex gap-1 mb-1">
             {/* Top-Left Corner - "Ep" label */}
-            <div className="w-12 shrink-0 sticky left-0 z-20 bg-[#0d1114] text-right pr-2 text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-end justify-end pb-1">
+            <div className="w-12 shrink-0 sticky left-0 z-20 bg-[#0d1114] text-right pr-2 text-[10px] font-mono font-bold text-text-muted uppercase tracking-wider flex items-end justify-end pb-1">
               Ep
             </div>
 
             {/* Episode Number Headers */}
             {Array.from({ length: seasonData.maxEpisodes }).map((_, i) => (
-              <div key={`ep-header-${i}`} className="w-10 shrink-0 text-center text-xs text-text-muted font-medium">
+              <div key={`ep-header-${i}`} className="w-10 shrink-0 text-center text-xs text-text-muted font-mono font-medium">
                 {i + 1}
               </div>
             ))}
 
             {/* Avg Column Header */}
-            <div className="w-12 shrink-0 text-center text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-end justify-center pb-1 ml-1">
+            <div className="w-12 shrink-0 text-center text-[10px] font-mono font-bold text-text-muted uppercase tracking-wider flex items-end justify-center pb-1 ml-1">
               Avg
             </div>
           </div>
@@ -111,7 +111,7 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
               <div key={season.seasonNumber} className="flex gap-1 items-center">
                 {/* Season Label (Sticky Left) */}
                 <div className="w-12 h-10 shrink-0 sticky left-0 z-10 bg-[#0d1114] flex items-center justify-end pr-3">
-                  <span className="text-xs font-bold text-text-muted">S{season.seasonNumber}</span>
+                  <span className="text-xs font-mono font-bold text-text-muted">S{season.seasonNumber}</span>
                 </div>
 
                 {/* Episodes Row */}

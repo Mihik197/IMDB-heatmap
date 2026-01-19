@@ -4,6 +4,7 @@ import SearchBar from './SearchBar'
 import HeatMap from './HeatMap'
 import Header from './Header'
 import RecentShows from './RecentShows'
+import Icon from './Icon'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -51,7 +52,8 @@ function App() {
         .then(meta => {
           setLoadingMeta(false);
           if (meta && !meta.error) {
-            setBaseMeta(meta);
+            // Merge with existing baseMeta to preserve fields like imdbRating that may not be in getShowMeta
+            setBaseMeta(prev => ({ ...prev, ...meta }));
             setLoadingEpisodes(true);
             const epController = new AbortController();
             episodesAbortRef.current = epController;
@@ -175,52 +177,54 @@ function App() {
   return (
     <div className="min-h-screen bg-bg text-text">
       <Header />
-      <main className="max-w-[1400px] mx-auto px-4 py-4">
+      <main className="max-w-[1400px] mx-auto px-6 py-6">
         <SearchBar onSearch={handleSearch} />
-        {error && <p className="text-danger font-mono text-sm font-semibold mt-3" role="alert">{error}</p>}
+
+        {error && (
+          <div className="flex items-center gap-2 mt-4 px-4 py-3 bg-red-900/20 border border-red-800/40 rounded-lg" role="alert">
+            <Icon name="warning" size={16} className="text-danger shrink-0" />
+            <p className="text-danger font-medium text-sm">{error}</p>
+          </div>
+        )}
 
         {baseMeta && !baseMeta.error && (
-          <div className="mt-4 flex gap-4 items-start">
+          <div className="mt-6 flex gap-6 items-start animate-fade-in">
             {/* Left Sidebar - Show Info */}
-            <div className="w-[220px] shrink-0 bg-surface border border-border rounded-lg p-4">
+            <div className="w-[240px] shrink-0 card p-5">
               {/* Poster */}
               {baseMeta.Poster && baseMeta.Poster !== 'N/A' && (
-                <img
-                  src={baseMeta.Poster}
-                  alt={`${baseMeta.Title} Poster`}
-                  className="w-full rounded-lg mb-4 shadow-md"
-                />
+                <div className="poster mb-5">
+                  <img
+                    src={baseMeta.Poster}
+                    alt={`${baseMeta.Title} Poster`}
+                    className="w-full rounded-lg"
+                  />
+                </div>
               )}
 
               {/* Title */}
-              <h2 className="text-lg font-bold text-white leading-tight mb-2">{baseMeta.Title}</h2>
+              <h2 className="font-heading text-xl font-bold text-text leading-tight mb-3">{baseMeta.Title}</h2>
 
               {/* Rating */}
               {baseMeta.imdbRating && baseMeta.imdbRating !== 'N/A' && (
-                <div className="flex items-center gap-1.5 mb-3 bg-[#1a1f23] rounded-full px-3 py-1.5 w-fit">
-                  <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                  </svg>
-                  <span className="text-white font-bold">{baseMeta.imdbRating}</span>
+                <div className="flex items-center gap-2 mb-4 bg-surface-alt rounded-full px-3 py-2 w-fit">
+                  <Icon name="star" size={18} className="text-accent" />
+                  <span className="font-heading font-bold text-text">{baseMeta.imdbRating}</span>
                   <span className="text-text-muted text-sm">/ 10</span>
                 </div>
               )}
 
               {/* Year & Seasons */}
-              <div className="flex items-center gap-2 text-xs text-text-muted mb-3 flex-wrap">
+              <div className="flex items-center gap-3 text-sm text-text-muted mb-4 flex-wrap">
                 {baseMeta.Year && (
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="calendar" size={14} className="text-text-dim" />
                     <span>{baseMeta.Year}</span>
                   </div>
                 )}
                 {baseMeta.totalSeasons && (
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="seasons" size={14} className="text-text-dim" />
                     <span>{baseMeta.totalSeasons} Season{baseMeta.totalSeasons !== '1' ? 's' : ''}</span>
                   </div>
                 )}
@@ -228,11 +232,11 @@ function App() {
 
               {/* Genres */}
               {genres.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
+                <div className="flex flex-wrap gap-1.5 mb-4">
                   {genres.map(genre => (
                     <span
                       key={genre}
-                      className="px-2 py-0.5 text-[10px] font-medium text-text-muted bg-surface-alt border border-border rounded-full"
+                      className="px-2.5 py-1 text-[11px] font-medium text-text-muted bg-surface-alt border border-border rounded-full"
                     >
                       {genre}
                     </span>
@@ -242,63 +246,85 @@ function App() {
 
               {/* Plot */}
               {baseMeta.Plot && baseMeta.Plot !== 'N/A' && (
-                <p className="text-xs text-text-muted leading-relaxed mb-3">{baseMeta.Plot}</p>
+                <p className="text-sm text-text-muted leading-relaxed mb-4">{baseMeta.Plot}</p>
               )}
 
               {/* Status badges */}
-              <div className="flex flex-wrap gap-1.5 mb-3">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {incomplete && (
-                  <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-semibold tracking-wide bg-[#302414] text-[#d9a45e] border border-[#4a3722] rounded" title="Some episodes still missing ratings">
+                  <span className="badge badge-gold" title="Some episodes still missing ratings">
+                    <Icon name="warning" size={10} />
                     Incomplete
                   </span>
                 )}
                 {partialData && (
-                  <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-semibold tracking-wide bg-[#1e2d38] text-[#7fb9d8] border border-[#2d4856] rounded" title="Background enrichment in progress">
+                  <span className="badge badge-blue animate-pulse" title="Background enrichment in progress">
+                    <Icon name="refresh" size={10} className="animate-spin" />
                     Enriching…
                   </span>
                 )}
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 {hasMissing && (
                   <button
-                    className="w-full px-2 py-1.5 text-[9px] font-mono font-semibold tracking-wide bg-[#253035] text-text border border-[#354247] rounded cursor-pointer hover:bg-[#2d3a40] disabled:opacity-55 disabled:cursor-default"
+                    className="btn btn-secondary flex items-center justify-center gap-2 w-full text-xs"
                     onClick={refreshMissing}
                     disabled={refreshingMissing}
                   >
+                    <Icon name="refresh" size={14} className={refreshingMissing ? 'animate-spin' : ''} />
                     {refreshingMissing ? 'Refreshing…' : 'Refresh missing'}
                   </button>
                 )}
                 {stale && (
                   <button
-                    className="w-full px-2 py-1.5 text-[9px] font-mono font-semibold tracking-wide bg-[#2d2a1f] text-[#e9d7b7] border border-[#4a4434] rounded cursor-pointer hover:bg-[#363225] disabled:opacity-55 disabled:cursor-default"
+                    className="btn btn-secondary flex items-center justify-center gap-2 w-full text-xs"
                     onClick={refreshAll}
                     disabled={refreshingMissing}
                   >
+                    <Icon name="refresh" size={14} className={refreshingMissing ? 'animate-spin' : ''} />
                     {refreshingMissing ? 'Refreshing…' : 'Refresh data'}
                   </button>
                 )}
               </div>
 
-              {loadingEpisodes && <div className="text-text-muted text-xs mt-3" aria-live="polite">Loading ratings…</div>}
+              {loadingEpisodes && (
+                <div className="flex items-center gap-2 text-text-muted text-sm mt-4" aria-live="polite">
+                  <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                  Loading ratings…
+                </div>
+              )}
             </div>
 
             {/* Right Content - Heatmap */}
             <div className="flex-1 min-w-0">
               {partialData && !loadingEpisodes && (
-                <div className="mb-3 px-2 py-1.5 text-[10px] font-mono tracking-wide text-[#6aa6c3] bg-[#132228] border border-[#1e3640] rounded" aria-live="polite">
+                <div className="mb-4 px-4 py-3 flex items-center gap-2 text-sm text-info bg-blue-900/20 border border-blue-800/40 rounded-lg" aria-live="polite">
+                  <Icon name="info" size={16} className="shrink-0" />
                   Background IMDb enrichment running… latest ratings will appear automatically.
                 </div>
               )}
               {data && data.episodes && !loadingEpisodes && <HeatMap data={data} baseMeta={baseMeta} />}
-              {loadingEpisodes && <div className="text-text-muted text-sm py-4" aria-hidden="true">Preparing heatmap…</div>}
+              {loadingEpisodes && (
+                <div className="flex items-center gap-3 text-text-muted py-8">
+                  <div className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                  <span className="font-medium">Preparing heatmap…</span>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {baseMeta && baseMeta.error && <p className="text-danger font-mono text-sm font-semibold mt-3" role="alert">{baseMeta.error}</p>}
-        {stillLoading && !baseMeta && <div className="skeleton mt-3">Loading…</div>}
+        {baseMeta && baseMeta.error && (
+          <div className="flex items-center gap-2 mt-4 px-4 py-3 bg-red-900/20 border border-red-800/40 rounded-lg" role="alert">
+            <Icon name="warning" size={16} className="text-danger shrink-0" />
+            <p className="text-danger font-medium text-sm">{baseMeta.error}</p>
+          </div>
+        )}
+
+        {stillLoading && !baseMeta && <div className="skeleton mt-4">Loading…</div>}
+
         <RecentShows onSelect={(title) => handleSearch({ title })} />
       </main>
     </div>

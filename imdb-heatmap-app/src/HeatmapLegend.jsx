@@ -2,6 +2,7 @@
 import React from 'react';
 
 const HeatmapLegend = () => {
+  // Original color scale to match HeatmapChart
   const legendColors = [
     { color: '#ef4444', label: '< 5.5' },
     { color: '#f97316', label: '5.5–6.5' },

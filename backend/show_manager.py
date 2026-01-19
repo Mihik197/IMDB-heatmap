@@ -322,6 +322,10 @@ def process_show_refresh(imdb_id):
         show.imdb_rating = parse_float(sdata.get('imdbRating')) or show.imdb_rating
         if sdata.get('imdbVotes') and sdata.get('imdbVotes').replace(',','').isdigit():
             show.imdb_votes = int(sdata.get('imdbVotes').replace(',',''))
+        # Save poster if available
+        poster = sdata.get('Poster')
+        if poster and poster != 'N/A':
+            show.poster = poster
         if new_total > show.total_seasons:
             show.total_seasons = new_total
     
@@ -474,6 +478,10 @@ def process_metadata_refresh(imdb_id):
     show.imdb_rating = parse_float(sdata.get('imdbRating')) or show.imdb_rating
     if sdata.get('imdbVotes') and sdata.get('imdbVotes').replace(',','').isdigit():
         show.imdb_votes = int(sdata.get('imdbVotes').replace(',',''))
+    # Save poster if not already set or if we have a valid new one
+    poster = sdata.get('Poster')
+    if poster and poster != 'N/A':
+        show.poster = poster
         
     show.last_updated = datetime.now(UTC).replace(tzinfo=None)
     session.commit()

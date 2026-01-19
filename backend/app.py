@@ -204,6 +204,7 @@ def refresh_metadata_only():
 
 # Curated list of iconic TV shows with interesting heatmaps (just IDs and titles)
 FEATURED_SHOW_IDS = [
+    # All-time greats
     {'imdbID': 'tt0903747', 'title': 'Breaking Bad', 'year': '2008–2013'},
     {'imdbID': 'tt0944947', 'title': 'Game of Thrones', 'year': '2011–2019'},
     {'imdbID': 'tt0386676', 'title': 'The Office', 'year': '2005–2013'},
@@ -220,6 +221,21 @@ FEATURED_SHOW_IDS = [
     {'imdbID': 'tt0108778', 'title': 'Friends', 'year': '1994–2004'},
     {'imdbID': 'tt1856010', 'title': 'House of Cards', 'year': '2013–2018'},
     {'imdbID': 'tt2356777', 'title': 'True Detective', 'year': '2014–'},
+    # Modern classics
+    {'imdbID': 'tt5180504', 'title': 'The Witcher', 'year': '2019–'},
+    {'imdbID': 'tt5071412', 'title': 'Ozark', 'year': '2017–2022'},
+    {'imdbID': 'tt2085059', 'title': 'Black Mirror', 'year': '2011–'},
+    {'imdbID': 'tt4786824', 'title': 'The Crown', 'year': '2016–'},
+    {'imdbID': 'tt0475784', 'title': 'Westworld', 'year': '2016–2022'},
+    {'imdbID': 'tt0804503', 'title': 'Mad Men', 'year': '2007–2015'},
+    {'imdbID': 'tt2306299', 'title': 'Vikings', 'year': '2013–2020'},
+    {'imdbID': 'tt0898266', 'title': 'The Big Bang Theory', 'year': '2007–2019'},
+    {'imdbID': 'tt0460681', 'title': 'Supernatural', 'year': '2005–2020'},
+    {'imdbID': 'tt0121955', 'title': 'South Park', 'year': '1997–'},
+    {'imdbID': 'tt0182576', 'title': 'Family Guy', 'year': '1999–'},
+    {'imdbID': 'tt0096697', 'title': 'The Simpsons', 'year': '1989–'},
+    {'imdbID': 'tt1586680', 'title': 'Shameless', 'year': '2011–2021'},
+    {'imdbID': 'tt0472954', 'title': 'It\'s Always Sunny in Philadelphia', 'year': '2005–'},
 ]
 
 # Cache for featured show metadata
@@ -229,7 +245,7 @@ FEATURED_CACHE_TTL = 86400  # 24 hours
 @app.route('/trending')
 def get_trending():
     """Returns trending TV shows scraped from IMDB's chart."""
-    shows = services.get_trending_shows(limit=12)
+    shows = services.get_trending_shows()
     return jsonify(shows)
 
 @app.route('/popular')

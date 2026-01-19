@@ -27,11 +27,11 @@ _trending_cache = {'data': None, 'timestamp': 0}
 TRENDING_TTL = 86400  # 24 hours
 
 
-def get_trending_shows(limit=15):
+def get_trending_shows():
     """Scrape IMDB's most popular TV shows chart. Cached for 24 hours."""
     now = time.time()
     if _trending_cache['data'] and (now - _trending_cache['timestamp']) < TRENDING_TTL:
-        return _trending_cache['data'][:limit]
+        return _trending_cache['data']
     
     url = 'https://www.imdb.com/chart/tvmeter/'
     try:
@@ -75,7 +75,7 @@ def get_trending_shows(limit=15):
                     break
             
             if chart_titles:
-                for edge in chart_titles[:limit]:
+                for edge in chart_titles:
                     node = edge.get('node', edge)
                     if not node:
                         continue
@@ -112,7 +112,7 @@ def get_trending_shows(limit=15):
     if not shows:
         # Try multiple selectors for chart items
         chart_items = soup.select('li.ipc-metadata-list-summary-item') or soup.select('.chart-container li')
-        for item in chart_items[:limit]:
+        for item in chart_items:
             try:
                 # Find title link
                 link = item.find('a', href=re.compile(r'/title/tt\d+'))
@@ -160,7 +160,7 @@ def get_trending_shows(limit=15):
     else:
         print("[get_trending_shows] no shows found")
     
-    return shows[:limit]
+    return shows
 
 def throttled_omdb_get(url, timeout=10):
     global _last_omdb_call

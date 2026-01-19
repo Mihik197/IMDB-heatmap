@@ -202,41 +202,7 @@ def refresh_metadata_only():
 
 # --- Discovery Endpoints ---
 
-# Curated list of iconic TV shows with interesting heatmaps (just IDs and titles)
-FEATURED_SHOW_IDS = [
-    # All-time greats
-    {'imdbID': 'tt0903747', 'title': 'Breaking Bad', 'year': '2008–2013'},
-    {'imdbID': 'tt0944947', 'title': 'Game of Thrones', 'year': '2011–2019'},
-    {'imdbID': 'tt0386676', 'title': 'The Office', 'year': '2005–2013'},
-    {'imdbID': 'tt0141842', 'title': 'The Sopranos', 'year': '1999–2007'},
-    {'imdbID': 'tt0306414', 'title': 'The Wire', 'year': '2002–2008'},
-    {'imdbID': 'tt0773262', 'title': 'Dexter', 'year': '2006–2013'},
-    {'imdbID': 'tt4574334', 'title': 'Stranger Things', 'year': '2016–'},
-    {'imdbID': 'tt1475582', 'title': 'Sherlock', 'year': '2010–2017'},
-    {'imdbID': 'tt2861424', 'title': 'Rick and Morty', 'year': '2013–'},
-    {'imdbID': 'tt0460649', 'title': 'How I Met Your Mother', 'year': '2005–2014'},
-    {'imdbID': 'tt0411008', 'title': 'Lost', 'year': '2004–2010'},
-    {'imdbID': 'tt1520211', 'title': 'The Walking Dead', 'year': '2010–2022'},
-    {'imdbID': 'tt0098904', 'title': 'Seinfeld', 'year': '1989–1998'},
-    {'imdbID': 'tt0108778', 'title': 'Friends', 'year': '1994–2004'},
-    {'imdbID': 'tt1856010', 'title': 'House of Cards', 'year': '2013–2018'},
-    {'imdbID': 'tt2356777', 'title': 'True Detective', 'year': '2014–'},
-    # Modern classics
-    {'imdbID': 'tt5180504', 'title': 'The Witcher', 'year': '2019–'},
-    {'imdbID': 'tt5071412', 'title': 'Ozark', 'year': '2017–2022'},
-    {'imdbID': 'tt2085059', 'title': 'Black Mirror', 'year': '2011–'},
-    {'imdbID': 'tt4786824', 'title': 'The Crown', 'year': '2016–'},
-    {'imdbID': 'tt0475784', 'title': 'Westworld', 'year': '2016–2022'},
-    {'imdbID': 'tt0804503', 'title': 'Mad Men', 'year': '2007–2015'},
-    {'imdbID': 'tt2306299', 'title': 'Vikings', 'year': '2013–2020'},
-    {'imdbID': 'tt0898266', 'title': 'The Big Bang Theory', 'year': '2007–2019'},
-    {'imdbID': 'tt0460681', 'title': 'Supernatural', 'year': '2005–2020'},
-    {'imdbID': 'tt0121955', 'title': 'South Park', 'year': '1997–'},
-    {'imdbID': 'tt0182576', 'title': 'Family Guy', 'year': '1999–'},
-    {'imdbID': 'tt0096697', 'title': 'The Simpsons', 'year': '1989–'},
-    {'imdbID': 'tt1586680', 'title': 'Shameless', 'year': '2011–2021'},
-    {'imdbID': 'tt0472954', 'title': 'It\'s Always Sunny in Philadelphia', 'year': '2005–'},
-]
+from featured_shows import FEATURED_SHOW_IDS
 
 # Cache for featured show metadata
 _featured_cache = {'data': None, 'timestamp': 0}
@@ -287,22 +253,24 @@ def get_popular():
 
 @app.route('/featured')
 def get_featured():
-    """Returns curated list of iconic TV shows with fresh poster/rating data."""
+    """Returns curated list of iconic TV shows - instant response, no blocking API calls."""
+    import random
+    
     now = time.time()
     
     # Return cached data if still valid
     if _featured_cache['data'] and (now - _featured_cache['timestamp']) < FEATURED_CACHE_TTL:
         return jsonify(_featured_cache['data'])
     
-    api_key = os.getenv('VITE_API_KEY')
     enriched_shows = []
     
+    # Collect all shows instantly - use DB data if available, otherwise basic info
     for show_info in FEATURED_SHOW_IDS:
         imdb_id = show_info['imdbID']
         
-        # First check if we have fresh data in the database
+        # Check if we have data in the database (instant lookup, no API call)
         db_show = session.query(Show).filter_by(imdb_id=imdb_id).first()
-        if db_show and db_show.poster and db_show.imdb_rating:
+        if db_show and db_show.poster:
             enriched_shows.append({
                 'imdbID': imdb_id,
                 'title': db_show.title or show_info['title'],
@@ -310,37 +278,19 @@ def get_featured():
                 'poster': db_show.poster,
                 'imdbRating': db_show.imdb_rating
             })
-            continue
-        
-        # Otherwise fetch from OMDb
-        try:
-            url = f'http://www.omdbapi.com/?apikey={api_key}&i={imdb_id}'
-            resp = services.throttled_omdb_get(url, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('Response') == 'True':
-                    poster = data.get('Poster')
-                    rating = data.get('imdbRating')
-                    if poster and poster != 'N/A':
-                        enriched_shows.append({
-                            'imdbID': imdb_id,
-                            'title': data.get('Title', show_info['title']),
-                            'year': data.get('Year', show_info['year']),
-                            'poster': poster,
-                            'imdbRating': float(rating) if rating and rating != 'N/A' else None
-                        })
-                        continue
-        except Exception as e:
-            print(f"[featured] fetch error for {imdb_id}: {e}")
-        
-        # Fallback to basic info without poster
-        enriched_shows.append({
-            'imdbID': imdb_id,
-            'title': show_info['title'],
-            'year': show_info['year'],
-            'poster': None,
-            'imdbRating': None
-        })
+        else:
+            # Basic info without poster - still usable by frontend
+            enriched_shows.append({
+                'imdbID': imdb_id,
+                'title': show_info['title'],
+                'year': show_info['year'],
+                'poster': None,
+                'imdbRating': None
+            })
+    
+    # Shuffle to add variety, then prioritize shows with posters
+    random.shuffle(enriched_shows)
+    enriched_shows.sort(key=lambda x: (x['poster'] is None, x['imdbRating'] is None))
     
     # Cache the results
     _featured_cache['data'] = enriched_shows

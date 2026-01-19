@@ -1,0 +1,96 @@
+# featured_shows.py
+# Curated list of iconic TV shows with interesting heatmaps
+
+FEATURED_SHOW_IDS = [
+    # All-time greats
+    {'imdbID': 'tt0903747', 'title': 'Breaking Bad', 'year': '2008-2013'},
+    {'imdbID': 'tt0944947', 'title': 'Game of Thrones', 'year': '2011-2019'},
+    {'imdbID': 'tt0386676', 'title': 'The Office', 'year': '2005-2013'},
+    {'imdbID': 'tt0141842', 'title': 'The Sopranos', 'year': '1999-2007'},
+    {'imdbID': 'tt0306414', 'title': 'The Wire', 'year': '2002-2008'},
+    {'imdbID': 'tt0773262', 'title': 'Dexter', 'year': '2006-2013'},
+    {'imdbID': 'tt4574334', 'title': 'Stranger Things', 'year': '2016-'},
+    {'imdbID': 'tt1475582', 'title': 'Sherlock', 'year': '2010-2017'},
+    {'imdbID': 'tt2861424', 'title': 'Rick and Morty', 'year': '2013-'},
+    {'imdbID': 'tt0460649', 'title': 'How I Met Your Mother', 'year': '2005-2014'},
+    {'imdbID': 'tt0411008', 'title': 'Lost', 'year': '2004-2010'},
+    {'imdbID': 'tt1520211', 'title': 'The Walking Dead', 'year': '2010-2022'},
+    {'imdbID': 'tt0098904', 'title': 'Seinfeld', 'year': '1989-1998'},
+    {'imdbID': 'tt0108778', 'title': 'Friends', 'year': '1994-2004'},
+    {'imdbID': 'tt1856010', 'title': 'House of Cards', 'year': '2013-2018'},
+    {'imdbID': 'tt2356777', 'title': 'True Detective', 'year': '2014-'},
+    
+    # Modern classics
+    {'imdbID': 'tt5180504', 'title': 'The Witcher', 'year': '2019-'},
+    {'imdbID': 'tt5071412', 'title': 'Ozark', 'year': '2017-2022'},
+    {'imdbID': 'tt2085059', 'title': 'Black Mirror', 'year': '2011-'},
+    {'imdbID': 'tt4786824', 'title': 'The Crown', 'year': '2016-'},
+    {'imdbID': 'tt0475784', 'title': 'Westworld', 'year': '2016-2022'},
+    {'imdbID': 'tt0804503', 'title': 'Mad Men', 'year': '2007-2015'},
+    {'imdbID': 'tt2306299', 'title': 'Vikings', 'year': '2013-2020'},
+    {'imdbID': 'tt0898266', 'title': 'The Big Bang Theory', 'year': '2007-2019'},
+    {'imdbID': 'tt0460681', 'title': 'Supernatural', 'year': '2005-2020'},
+    {'imdbID': 'tt0121955', 'title': 'South Park', 'year': '1997-'},
+    {'imdbID': 'tt0182576', 'title': 'Family Guy', 'year': '1999-'},
+    {'imdbID': 'tt0096697', 'title': 'The Simpsons', 'year': '1989-'},
+    {'imdbID': 'tt1586680', 'title': 'Shameless', 'year': '2011-2021'},
+    {'imdbID': 'tt0472954', 'title': "It's Always Sunny in Philadelphia", 'year': '2005-'},
+    
+    # Prestige dramas
+    {'imdbID': 'tt7366338', 'title': 'Chernobyl', 'year': '2019'},
+    {'imdbID': 'tt0413573', 'title': 'Grey\'s Anatomy', 'year': '2005-'},
+    {'imdbID': 'tt1839578', 'title': 'Person of Interest', 'year': '2011-2016'},
+    {'imdbID': 'tt2193021', 'title': 'Arrow', 'year': '2012-2020'},
+    {'imdbID': 'tt3749900', 'title': 'This Is Us', 'year': '2016-2022'},
+    {'imdbID': 'tt2442560', 'title': 'Peaky Blinders', 'year': '2013-2022'},
+    {'imdbID': 'tt0455275', 'title': 'Prison Break', 'year': '2005-2017'},
+    {'imdbID': 'tt0185906', 'title': 'Band of Brothers', 'year': '2001'},
+    {'imdbID': 'tt0417299', 'title': 'Avatar: The Last Airbender', 'year': '2005-2008'},
+    {'imdbID': 'tt1266020', 'title': 'Parks and Recreation', 'year': '2009-2015'},
+    
+    # Sci-fi & fantasy favorites
+    {'imdbID': 'tt0407362', 'title': 'Battlestar Galactica', 'year': '2004-2009'},
+    {'imdbID': 'tt0303461', 'title': 'Firefly', 'year': '2002-2003'},
+    {'imdbID': 'tt1124373', 'title': 'Sons of Anarchy', 'year': '2008-2014'},
+    {'imdbID': 'tt0383126', 'title': 'Ballers', 'year': '2015-2019'},
+    {'imdbID': 'tt0436992', 'title': 'Doctor Who', 'year': '2005-'},
+    {'imdbID': 'tt1119644', 'title': 'Fringe', 'year': '2008-2013'},
+    {'imdbID': 'tt1442437', 'title': 'Modern Family', 'year': '2009-2020'},
+    {'imdbID': 'tt0367279', 'title': 'Arrested Development', 'year': '2003-2019'},
+    {'imdbID': 'tt0412142', 'title': 'House', 'year': '2004-2012'},
+    {'imdbID': 'tt0285403', 'title': 'Scrubs', 'year': '2001-2010'},
+    
+    # Recent hits
+    {'imdbID': 'tt8111088', 'title': 'The Mandalorian', 'year': '2019-'},
+    {'imdbID': 'tt8690918', 'title': 'Euphoria', 'year': '2019-'},
+    {'imdbID': 'tt6723592', 'title': 'Cobra Kai', 'year': '2018-'},
+    {'imdbID': 'tt4052886', 'title': 'Lucifer', 'year': '2016-2021'},
+    {'imdbID': 'tt5753856', 'title': 'Dark', 'year': '2017-2020'},
+    {'imdbID': 'tt6468322', 'title': 'Money Heist', 'year': '2017-2021'},
+    {'imdbID': 'tt5290382', 'title': 'Mindhunter', 'year': '2017-2019'},
+    {'imdbID': 'tt1877514', 'title': 'Banshee', 'year': '2013-2016'},
+    {'imdbID': 'tt7569592', 'title': 'Succession', 'year': '2018-2023'},
+    {'imdbID': 'tt3230854', 'title': 'The Expanse', 'year': '2015-2022'},
+    
+    # Animated gems
+    {'imdbID': 'tt2560140', 'title': 'Attack on Titan', 'year': '2013-2023'},
+    {'imdbID': 'tt0121220', 'title': 'Futurama', 'year': '1999-'},
+    {'imdbID': 'tt0118375', 'title': 'Cowboy Bebop', 'year': '1998-1999'},
+    {'imdbID': 'tt6751668', 'title': 'Demon Slayer', 'year': '2019-'},
+    {'imdbID': 'tt5363918', 'title': 'Arcane', 'year': '2021-'},
+    {'imdbID': 'tt2861424', 'title': 'Rick and Morty', 'year': '2013-'},
+    {'imdbID': 'tt0213338', 'title': 'SpongeBob SquarePants', 'year': '1999-'},
+    {'imdbID': 'tt0088559', 'title': 'Dragon Ball Z', 'year': '1989-1996'},
+    
+    # Crime & thriller
+    {'imdbID': 'tt0239195', 'title': 'Curb Your Enthusiasm', 'year': '2000-2024'},
+    {'imdbID': 'tt0314979', 'title': 'Battlestar Galactica', 'year': '2004-2009'},
+    {'imdbID': 'tt0478942', 'title': 'Criminal Minds', 'year': '2005-2020'},
+    {'imdbID': 'tt2384811', 'title': 'Hannibal', 'year': '2013-2015'},
+    {'imdbID': 'tt1632701', 'title': 'Suits', 'year': '2011-2019'},
+    {'imdbID': 'tt0203259', 'title': 'The Shield', 'year': '2002-2008'},
+    {'imdbID': 'tt1844624', 'title': 'American Horror Story', 'year': '2011-'},
+    {'imdbID': 'tt1795096', 'title': 'Homeland', 'year': '2011-2020'},
+    {'imdbID': 'tt3032476', 'title': 'Better Call Saul', 'year': '2015-2022'},
+    {'imdbID': 'tt2243973', 'title': 'Fargo', 'year': '2014-'},
+]

@@ -1,4 +1,6 @@
 import datetime
+from fastapi import Response
+from fastapi.responses import JSONResponse
 from datetime import UTC
 
 from database import (
@@ -6,7 +8,10 @@ from database import (
     Episode,
     SeasonHash,
     get_or_create_season_hash,
-    compute_season_signature
+    compute_season_signature,
+    Show,
+    is_episode_stale,
+    is_show_metadata_stale
 )
 from utils import parse_float
 
@@ -87,3 +92,52 @@ def _recompute_season_signature(db_session, show_id, season_num):
     sh.signature = sig
     sh.last_computed = _now_utc_naive()
     return sig
+
+
+def get_show_data(imdb_id, if_none_match=None, enrichment_set=None):
+    """Fetch show data from DB and format it for the API response."""
+    show = session.query(Show).filter_by(imdb_id=imdb_id).first()
+    if not show:
+        return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
+
+    try:
+        session.refresh(show)
+    except Exception:
+        pass  # Handle detached instance error if occurs
+
+    episodes = session.query(Episode).filter_by(show_id=show.id).order_by(Episode.season, Episode.episode).all()
+    incomplete = any(ep.rating is None for ep in episodes)
+    metadata_stale = is_show_metadata_stale(show)
+    episodes_stale_count = sum(1 for ep in episodes if is_episode_stale(ep))
+    absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False))
+    provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
+    enrichment_set = enrichment_set or set()
+
+    etag_val = f"{int(show.last_updated.timestamp()) if show.last_updated else 0}:{len(episodes)}:{show.total_seasons}:{absent_count}"
+    if if_none_match == etag_val:
+        return Response(status_code=304, headers={'ETag': etag_val})
+
+    payload = {
+        'title': show.title, 'imdbID': show.imdb_id, 'totalSeasons': show.total_seasons,
+        'genres': show.genres, 'year': show.year, 'imdbRating': show.imdb_rating,
+        'imdbVotes': show.imdb_votes,
+        'lastFullRefresh': show.last_full_refresh.isoformat() if show.last_full_refresh else None,
+        'incomplete': incomplete, 'metadataStale': metadata_stale,
+        'episodesStaleCount': episodes_stale_count,
+        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in enrichment_set)),
+        'episodes': [{
+            'season': ep.season, 'episode': ep.episode, 'title': ep.title, 'rating': ep.rating,
+            'imdb_id': ep.imdb_id, 'votes': ep.votes,
+            'lastChecked': ep.last_checked.isoformat() if ep.last_checked else None,
+            'missing': ep.missing, 'absent': getattr(ep, 'absent', None),
+            'provisional': getattr(ep, 'provisional', None),
+            'airDate': ep.air_date.isoformat() if getattr(ep, 'air_date', None) else None,
+        } for ep in episodes],
+        'absentEpisodesCount': absent_count,
+        'provisionalEpisodesCount': provisional_count
+    }
+
+    return JSONResponse(
+        content=payload,
+        headers={'ETag': etag_val, 'Cache-Control': 'public, max-age=5'}
+    )

@@ -1,5 +1,5 @@
 # app.py
-from fastapi import FastAPI, Query, Header, Response
+from fastapi import FastAPI, Query, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -16,17 +16,15 @@ from shows import (
     process_metadata_refresh,
     _enrichment_in_progress
 )
+from shows.show_helpers import get_show_data
 from utils import sanitize_imdb_id, safe_json
 
 from database import (
     init_db,
     ensure_columns,
     ensure_indices,
-    is_episode_stale,
-    is_show_metadata_stale,
     session,
-    Show,
-    Episode
+    Show
 )
 
 # Load environment variables
@@ -49,6 +47,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _require_imdb_id(raw_imdb_id, error_message='IMDB ID required'):
+    imdb_id = sanitize_imdb_id(raw_imdb_id)
+    if not imdb_id:
+        return None, JSONResponse({'error': error_message}, status_code=400)
+    return imdb_id, None
 
 @app.get('/search')
 def search_titles(q: str = Query('', alias='q'), page: str = Query('1', alias='page')):
@@ -114,9 +119,9 @@ def get_show(
     trackView: str = Query('1', alias='trackView'),
     if_none_match: str | None = Header(None, alias='If-None-Match')
 ):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'IMDB ID not provided'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='IMDB ID not provided')
+    if error:
+        return error
     track_view = trackView == '1'
         
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
@@ -125,62 +130,15 @@ def get_show(
         if track_view:
             show.view_count = (show.view_count or 0) + 1
             session.commit()
-        return get_show_data(imdb_id, if_none_match)
+        return get_show_data(imdb_id, if_none_match, enrichment_set=_enrichment_in_progress)
     else:
         return fetch_and_store_show(imdb_id, track_view=track_view)
 
-def get_show_data(imdb_id, if_none_match: str | None = None):
-    """Helper to fetch show data from DB and format it for the API response."""
-    show = session.query(Show).filter_by(imdb_id=imdb_id).first()
-    if not show:
-        return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
-        
-    try:
-        session.refresh(show)
-    except Exception:
-        pass # Handle detached instance error if occurs
-        
-    episodes = session.query(Episode).filter_by(show_id=show.id).order_by(Episode.season, Episode.episode).all()
-    incomplete = any(ep.rating is None for ep in episodes)
-    metadata_stale = is_show_metadata_stale(show)
-    episodes_stale_count = sum(1 for ep in episodes if is_episode_stale(ep))
-    absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False))
-    provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
-    
-    etag_val = f"{int(show.last_updated.timestamp()) if show.last_updated else 0}:{len(episodes)}:{show.total_seasons}:{absent_count}"
-    if if_none_match == etag_val:
-        return Response(status_code=304, headers={'ETag': etag_val})
-        
-    payload = {
-        'title': show.title, 'imdbID': show.imdb_id, 'totalSeasons': show.total_seasons,
-        'genres': show.genres, 'year': show.year, 'imdbRating': show.imdb_rating,
-        'imdbVotes': show.imdb_votes,
-        'lastFullRefresh': show.last_full_refresh.isoformat() if show.last_full_refresh else None,
-        'incomplete': incomplete, 'metadataStale': metadata_stale,
-        'episodesStaleCount': episodes_stale_count,
-        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in _enrichment_in_progress)),
-        'episodes': [{
-            'season': ep.season, 'episode': ep.episode, 'title': ep.title, 'rating': ep.rating,
-            'imdb_id': ep.imdb_id, 'votes': ep.votes,
-            'lastChecked': ep.last_checked.isoformat() if ep.last_checked else None,
-            'missing': ep.missing, 'absent': getattr(ep, 'absent', None),
-            'provisional': getattr(ep, 'provisional', None),
-            'airDate': ep.air_date.isoformat() if getattr(ep, 'air_date', None) else None,
-        } for ep in episodes],
-        'absentEpisodesCount': absent_count,
-        'provisionalEpisodesCount': provisional_count
-    }
-    
-    return JSONResponse(
-        content=payload,
-        headers={'ETag': etag_val, 'Cache-Control': 'public, max-age=5'}
-    )
-
 @app.get('/getShowMeta')
 def get_show_meta(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'IMDB ID not provided'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='IMDB ID not provided')
+    if error:
+        return error
 
     apiKey = os.getenv('VITE_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
@@ -204,23 +162,23 @@ def get_show_meta(imdbID: str = Query(None, alias='imdbID')):
 
 @app.post('/refresh/missing')
 def refresh_missing(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='IMDB ID required')
+    if error:
+        return error
     return process_missing_refresh(imdb_id)
 
 @app.post('/refresh/show')
 def refresh_show(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='IMDB ID required')
+    if error:
+        return error
     return process_show_refresh(imdb_id)
 
 @app.post('/refresh/metadata')
 def refresh_metadata_only(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'IMDB ID required'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='IMDB ID required')
+    if error:
+        return error
     return process_metadata_refresh(imdb_id)
 
 # --- Discovery Endpoints ---
@@ -326,17 +284,17 @@ def get_featured():
 
 @app.get('/debug/scrapeRating')
 def debug_scrape_rating(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'imdbID required'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='imdbID required')
+    if error:
+        return error
     rating = services.fetch_rating_from_imdb(imdb_id)
     return {'imdbID': imdb_id, 'scrapedRating': rating}
 
 @app.get('/debug/clearSeasonCache')
 def debug_clear_season_cache(imdbID: str = Query(None, alias='imdbID')):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id:
-        return JSONResponse({'error': 'imdbID required'}, status_code=400)
+    imdb_id, error = _require_imdb_id(imdbID, error_message='imdbID required')
+    if error:
+        return error
     removed = 0
     keys = list(services._imdb_season_cache.keys())
     for k in keys:
@@ -350,8 +308,8 @@ def debug_parse_season(
     imdbID: str = Query(None, alias='imdbID'),
     season: str = Query(None, alias='season')
 ):
-    imdb_id = sanitize_imdb_id(imdbID)
-    if not imdb_id or not season or not season.isdigit():
+    imdb_id, error = _require_imdb_id(imdbID, error_message='imdbID and numeric season required')
+    if error or not season or not season.isdigit():
         return JSONResponse({'error': 'imdbID and numeric season required'}, status_code=400)
     key = (imdb_id, int(season))
     services._imdb_season_cache.pop(key, None)

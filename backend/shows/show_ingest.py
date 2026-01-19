@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from database import session, Show
 import services
 from utils import parse_float, safe_json
-from .show_helpers import _parse_votes, _now_utc_naive, _build_episode_from_omdb, _recompute_season_signature
+from .show_helpers import _parse_votes, _now_utc_naive, _build_episode_from_omdb, _recompute_season_signature, get_show_data
 from .show_enrich import _imdb_enrich_show, _enrichment_in_progress, _enrichment_lock
 
 
@@ -62,7 +62,6 @@ def fetch_and_store_show(imdb_id, track_view=False):
             session.commit()
 
         session.commit()
-        from app import get_show_data
         return get_show_data(imdb_id)
 
     return JSONResponse({'error': 'Failed to fetch show data'}, status_code=500)
@@ -128,5 +127,4 @@ def fast_fetch_and_store_show(imdb_id, track_view=False):
     print(f"[fast_ingest] queued enrichment imdb_id={imdb_id} seasons={total_seasons}")
     threading.Thread(target=_imdb_enrich_show, args=(show.id, imdb_id, total_seasons), daemon=True).start()
 
-    from app import get_show_data
     return get_show_data(imdb_id)

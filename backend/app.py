@@ -6,8 +6,14 @@ import os
 import time
 
 import services
-import show_manager
 import worker
+from shows import (
+    fetch_and_store_show,
+    process_missing_refresh,
+    process_show_refresh,
+    process_metadata_refresh,
+    _enrichment_in_progress
+)
 from utils import sanitize_imdb_id, safe_json
 
 from database import (
@@ -100,7 +106,7 @@ def get_show():
         session.commit()
         return get_show_data(imdb_id)
     else:
-        return show_manager.fetch_and_store_show(imdb_id)
+        return fetch_and_store_show(imdb_id)
 
 def get_show_data(imdb_id):
     """Helper to fetch show data from DB and format it for the API response."""
@@ -133,7 +139,7 @@ def get_show_data(imdb_id):
         'lastFullRefresh': show.last_full_refresh.isoformat() if show.last_full_refresh else None,
         'incomplete': incomplete, 'metadataStale': metadata_stale,
         'episodesStaleCount': episodes_stale_count,
-        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in show_manager._enrichment_in_progress)),
+        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in _enrichment_in_progress)),
         'episodes': [{
             'season': ep.season, 'episode': ep.episode, 'title': ep.title, 'rating': ep.rating,
             'imdb_id': ep.imdb_id, 'votes': ep.votes,
@@ -184,21 +190,21 @@ def refresh_missing():
     imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
     if not imdb_id:
         return jsonify({'error': 'IMDB ID required'}), 400
-    return show_manager.process_missing_refresh(imdb_id)
+    return process_missing_refresh(imdb_id)
 
 @app.route('/refresh/show', methods=['POST'])
 def refresh_show():
     imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
     if not imdb_id:
         return jsonify({'error': 'IMDB ID required'}), 400
-    return show_manager.process_show_refresh(imdb_id)
+    return process_show_refresh(imdb_id)
 
 @app.route('/refresh/metadata', methods=['POST'])
 def refresh_metadata_only():
     imdb_id = sanitize_imdb_id(request.args.get('imdbID'))
     if not imdb_id:
         return jsonify({'error': 'IMDB ID required'}), 400
-    return show_manager.process_metadata_refresh(imdb_id)
+    return process_metadata_refresh(imdb_id)
 
 # --- Discovery Endpoints ---
 

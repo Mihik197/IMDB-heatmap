@@ -12,7 +12,7 @@ if ROOT not in sys.path:
 
 import app as backend
 
-# We will monkeypatch requests.get used inside fetch_rating_from_imdb
+# We will monkeypatch httpx.get used inside fetch_rating_from_imdb
 
 class DummyResp:
     def __init__(self, text='', status=200):
@@ -47,8 +47,8 @@ def test_fetch_rating_from_imdb_fallbacks(monkeypatch, html, expected):
     def fake_get(url, headers=None, timeout=10):
         calls['n'] += 1
         return DummyResp(text=html, status=200)
-    monkeypatch.setattr(backend.requests, 'get', fake_get)
-    rating = backend.fetch_rating_from_imdb('tt9999999')
+    monkeypatch.setattr(backend.services.httpx, 'get', fake_get)
+    rating = backend.services.fetch_rating_from_imdb('tt9999999')
     assert rating == expected
     assert calls['n'] == 1
 
@@ -56,8 +56,8 @@ def test_fetch_rating_multiple_attempts(monkeypatch):
     seq = [DummyResp(status=500), DummyResp(status=500), DummyResp(text=HTML_META, status=200)]
     def fake_get(url, headers=None, timeout=10):
         return seq.pop(0)
-    monkeypatch.setattr(backend.requests, 'get', fake_get)
-    rating = backend.fetch_rating_from_imdb('tt8888888')
+    monkeypatch.setattr(backend.services.httpx, 'get', fake_get)
+    rating = backend.services.fetch_rating_from_imdb('tt8888888')
     assert rating == '6.9'
 
 def test_parse_imdb_season(monkeypatch):
@@ -78,8 +78,8 @@ def test_parse_imdb_season(monkeypatch):
     class R: status_code=200; text=html
     def fake_get(url, timeout=12):
         return R()
-    monkeypatch.setattr(backend, 'throttled_imdb_get', fake_get)
-    eps = backend.parse_imdb_season('ttTESTID', 1)
+    monkeypatch.setattr(backend.services, 'throttled_imdb_get', fake_get)
+    eps = backend.services.parse_imdb_season('ttTESTID', 1)
     assert len(eps) == 2
     assert eps[0]['episode'] == 1 and eps[0]['rating'] == 8.2 and eps[0]['votes'] == 1300
     assert eps[1]['episode'] == 2 and eps[1]['votes'] == 987

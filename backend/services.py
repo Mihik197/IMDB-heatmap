@@ -1,5 +1,5 @@
 # services.py
-import requests
+import httpx
 import time
 import json
 import re
@@ -40,8 +40,8 @@ def get_trending_shows():
     
     url = 'https://www.imdb.com/chart/tvmeter/'
     try:
-        resp = requests.get(url, timeout=15, headers=IMDB_HEADERS)
-    except requests.RequestException as e:
+        resp = httpx.get(url, timeout=15, headers=IMDB_HEADERS)
+    except httpx.RequestError as e:
         print(f"[get_trending_shows] network error: {e}")
         return []
     
@@ -184,7 +184,7 @@ def parse_imdb_season(imdb_id, season):
     url = f"https://www.imdb.com/title/{imdb_id}/episodes/?season={season}"
     try:
         resp = throttled_imdb_get(url, timeout=12)
-    except requests.RequestException:
+    except httpx.RequestError:
         print(f"[parse_imdb_season] network error imdb_id={imdb_id} season={season}")
         return []
     if resp.status_code != 200:
@@ -215,7 +215,7 @@ def discover_imdb_max_season(imdb_id):
     url = f"https://www.imdb.com/title/{imdb_id}/episodes/"
     try:
         resp = throttled_imdb_get(url, timeout=10)
-    except requests.RequestException:
+    except httpx.RequestError:
         return None
     if resp.status_code != 200:
         return None
@@ -257,8 +257,8 @@ def fetch_rating_from_imdb(imdb_id):
     result = None
     for attempt, delay in enumerate(backoff, start=1):
         try:
-            resp = requests.get(url, headers=headers, timeout=10)
-        except requests.RequestException:
+            resp = httpx.get(url, headers=headers, timeout=10)
+        except httpx.RequestError:
             print(f"[scrape] network error attempt {attempt} imdb_id={imdb_id}")
             time.sleep(delay)
             continue

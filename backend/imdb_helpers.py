@@ -4,7 +4,7 @@ import time
 import json
 from datetime import datetime
 import threading
-import requests
+import httpx
 
 from utils import parse_float
 
@@ -26,7 +26,7 @@ def throttled_get(url, min_interval, timeout=10, headers=None):
         if delta < min_interval:
             time.sleep(min_interval - delta)
         try:
-            resp = requests.get(url, timeout=timeout, headers=headers)
+            resp = httpx.get(url, timeout=timeout, headers=headers)
         finally:
             _last_call = time.time()
     return resp

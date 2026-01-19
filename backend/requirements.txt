@@ -1,9 +1,0 @@
-flask
-werkzeug
-flask_cors
-sqlalchemy
-requests
-python-dotenv
-beautifulsoup4
-pytest
-requests-mock

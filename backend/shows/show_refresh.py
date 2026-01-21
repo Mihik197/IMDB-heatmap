@@ -1,4 +1,5 @@
 import os
+import threading
 from fastapi.responses import JSONResponse
 
 from database import session, Show, Episode, SeasonHash
@@ -13,59 +14,70 @@ from .show_helpers import (
     _recompute_season_signature
 )
 
+# Track missing refresh progress (in-memory, non-persistent)
+_missing_refresh_in_progress = set()
+_missing_refresh_lock = threading.Lock()
+
 
 def process_missing_refresh(imdb_id):
+    with _missing_refresh_lock:
+        _missing_refresh_in_progress.add(imdb_id)
     apiKey = os.getenv('OMDB_API_KEY')
-    show = session.query(Show).filter_by(imdb_id=imdb_id).first()
-    if not show:
-        return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
-    missing_eps = session.query(Episode).filter_by(show_id=show.id, rating=None).all()
-    updated = 0
-    updated_seasons = set()
-    missing_by_season = {}
-    for ep in missing_eps:
-        missing_by_season.setdefault(ep.season, []).append(ep)
+    try:
+        show = session.query(Show).filter_by(imdb_id=imdb_id).first()
+        if not show:
+            return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
+        missing_eps = session.query(Episode).filter_by(show_id=show.id, rating=None).all()
+        updated = 0
+        updated_seasons = set()
+        missing_by_season = {}
+        for ep in missing_eps:
+            missing_by_season.setdefault(ep.season, []).append(ep)
 
-    for season, eps in missing_by_season.items():
-        season_data = services.fetch_season_from_omdb(apiKey, imdb_id, season)
-        if not season_data:
-            continue
-        season_eps = season_data.get('Episodes', [])
-        omdb_map = {}
-        for ep_data in season_eps:
-            try:
-                ep_num = int(ep_data.get('Episode', 0))
-            except Exception:
+        for season, eps in missing_by_season.items():
+            season_data = services.fetch_season_from_omdb(apiKey, imdb_id, season)
+            if not season_data:
                 continue
-            omdb_map[ep_num] = ep_data
+            season_eps = season_data.get('Episodes', [])
+            omdb_map = {}
+            for ep_data in season_eps:
+                try:
+                    ep_num = int(ep_data.get('Episode', 0))
+                except Exception:
+                    continue
+                omdb_map[ep_num] = ep_data
 
-        for ep in eps:
-            ep_data = omdb_map.get(ep.episode)
-            if not ep_data:
-                continue
-            rating = parse_float(ep_data.get('imdbRating'))
-            if rating is None:
-                scraped = services.fetch_rating_from_imdb(ep_data.get('imdbID'))
-                rating = parse_float(scraped)
-            if rating is not None:
-                ep.rating = rating
-                ep.missing = False
-                ep.last_checked = _now_utc_naive()
-                votes = _parse_votes(ep_data.get('imdbVotes'))
-                if votes is not None:
-                    ep.votes = votes
-                updated += 1
-                updated_seasons.add(season)
-            else:
-                ep.missing = True
-                ep.last_checked = _now_utc_naive()
+            for ep in eps:
+                ep_data = omdb_map.get(ep.episode)
+                if not ep_data:
+                    continue
+                rating = parse_float(ep_data.get('imdbRating'))
+                if rating is None:
+                    scraped = services.fetch_rating_from_imdb(ep_data.get('imdbID'))
+                    rating = parse_float(scraped)
+                if rating is not None:
+                    ep.rating = rating
+                    ep.missing = False
+                    ep.last_checked = _now_utc_naive()
+                    votes = _parse_votes(ep_data.get('imdbVotes'))
+                    if votes is not None:
+                        ep.votes = votes
+                    updated += 1
+                    updated_seasons.add(season)
+                else:
+                    ep.missing = True
+                    ep.last_checked = _now_utc_naive()
 
-    if updated:
-        session.commit()
-        for season in updated_seasons:
-            _recompute_season_signature(session, show.id, season)
-        session.commit()
-    return {'updated': updated}
+        if updated:
+            session.commit()
+            for season in updated_seasons:
+                _recompute_season_signature(session, show.id, season)
+            show.last_updated = _now_utc_naive()
+            session.commit()
+        return {'updated': updated}
+    finally:
+        with _missing_refresh_lock:
+            _missing_refresh_in_progress.discard(imdb_id)
 
 
 def process_show_refresh(imdb_id):

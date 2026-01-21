@@ -16,6 +16,7 @@ from shows import (
     process_metadata_refresh,
     _enrichment_in_progress
 )
+from shows.show_refresh import _missing_refresh_in_progress
 from shows.show_helpers import get_show_data
 from utils import sanitize_imdb_id, safe_json
 
@@ -129,7 +130,7 @@ def get_show(
         if track_view:
             show.view_count = (show.view_count or 0) + 1
             session.commit()
-        return get_show_data(imdb_id, if_none_match, enrichment_set=_enrichment_in_progress)
+        return get_show_data(imdb_id, if_none_match, enrichment_set=_enrichment_in_progress, missing_refresh_set=_missing_refresh_in_progress)
     else:
         return fetch_and_store_show(imdb_id, track_view=track_view)
 

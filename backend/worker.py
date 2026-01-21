@@ -16,6 +16,7 @@ def maintenance_worker(interval_seconds=21600):  # 6 hours
             print("[maintenance] starting refresh cycle.")
             shows = session.query(Show).all()
             for show in shows:
+                updated_any = False
                 if is_show_metadata_stale(show):
                     print(f"[maintenance] metadata stale for {show.imdb_id}, refreshing.")
                     api_key = os.getenv('OMDB_API_KEY')
@@ -59,7 +60,11 @@ def maintenance_worker(interval_seconds=21600):  # 6 hours
                                         ep.rating = rating
                                         ep.missing = False
                                         ep.last_checked = datetime.now(UTC).replace(tzinfo=None)
+                                        updated_any = True
                         session.commit()
+                if updated_any:
+                    show.last_updated = datetime.now(UTC).replace(tzinfo=None)
+                    session.commit()
             print("[maintenance] refresh cycle complete.")
         except Exception as e:
             print(f"[maintenance] error: {e}")

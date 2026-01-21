@@ -98,9 +98,11 @@ export function useShowData(currentID, searchQuery) {
 
     // Polling for partial data updates
     const partialData = data?.partialData;
+    const missingRefreshInProgress = data?.missingRefreshInProgress;
+    const shouldPoll = !!(partialData || data?.incomplete || missingRefreshInProgress || refreshingMissing);
 
     useEffect(() => {
-        if (!data?.imdbID || !partialData) { pollStopRef.current = true; return; }
+        if (!data?.imdbID || !shouldPoll) { pollStopRef.current = true; return; }
         pollStopRef.current = false;
         let attempts = 0;
         const maxAttempts = 20;
@@ -144,7 +146,7 @@ export function useShowData(currentID, searchQuery) {
                                 setData(merged);
                             }
                         }
-                        if (full && !full.partialData) {
+                        if (full && !full.partialData && !full.missingRefreshInProgress && !full.incomplete) {
                             pollStopRef.current = true;
                         }
                     }
@@ -157,7 +159,7 @@ export function useShowData(currentID, searchQuery) {
 
         const id = setTimeout(tick, intervalMs);
         return () => { pollStopRef.current = true; clearTimeout(id); };
-    }, [partialData, data?.imdbID])
+    }, [partialData, data?.imdbID, data?.incomplete, missingRefreshInProgress, refreshingMissing, shouldPoll])
 
     // Refresh functions
     const refreshMissing = () => {

@@ -94,7 +94,7 @@ def _recompute_season_signature(db_session, show_id, season_num):
     return sig
 
 
-def get_show_data(imdb_id, if_none_match=None, enrichment_set=None):
+def get_show_data(imdb_id, if_none_match=None, enrichment_set=None, missing_refresh_set=None):
     """Fetch show data from DB and format it for the API response."""
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
@@ -112,6 +112,7 @@ def get_show_data(imdb_id, if_none_match=None, enrichment_set=None):
     absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False))
     provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
     enrichment_set = enrichment_set or set()
+    missing_refresh_set = missing_refresh_set or set()
 
     etag_val = f"{int(show.last_updated.timestamp()) if show.last_updated else 0}:{len(episodes)}:{show.total_seasons}:{absent_count}"
     if if_none_match == etag_val:
@@ -124,7 +125,8 @@ def get_show_data(imdb_id, if_none_match=None, enrichment_set=None):
         'lastFullRefresh': show.last_full_refresh.isoformat() if show.last_full_refresh else None,
         'incomplete': incomplete, 'metadataStale': metadata_stale,
         'episodesStaleCount': episodes_stale_count,
-        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in enrichment_set)),
+        'partialData': (provisional_count > 0 or absent_count > 0 or (imdb_id in enrichment_set) or (imdb_id in missing_refresh_set)),
+        'missingRefreshInProgress': (imdb_id in missing_refresh_set),
         'episodes': [{
             'season': ep.season, 'episode': ep.episode, 'title': ep.title, 'rating': ep.rating,
             'imdb_id': ep.imdb_id, 'votes': ep.votes,

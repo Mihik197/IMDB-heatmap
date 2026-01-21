@@ -27,6 +27,7 @@ export default function ShowInfoSidebar({
     const hasMissing = incomplete;
     const stale = (data?.metadataStale) || (data?.episodesStaleCount > 0);
     const partialData = data?.partialData;
+    const missingRefreshInProgress = data?.missingRefreshInProgress;
 
     return (
         <div className="w-[240px] shrink-0 card p-5">
@@ -98,7 +99,7 @@ export default function ShowInfoSidebar({
                         Incomplete
                     </span>
                 )}
-                {partialData && (
+                {(partialData || missingRefreshInProgress || refreshingMissing) && (
                     <span className="badge badge-blue animate-pulse" title="Background enrichment in progress">
                         <Icon name="refresh" size={10} className="animate-spin" />
                         Enriching…

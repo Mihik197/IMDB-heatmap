@@ -1,15 +1,24 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, func
-from sqlalchemy.orm import declarative_base 
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, func, text
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 from datetime import datetime, timedelta, UTC
-import sqlite3
+from dotenv import load_dotenv
+import os
 
-# database setup
-DATABASE_URL = "sqlite:///shows.db"
+# Load environment variables from .env file
+load_dotenv()
+
+# database setup - use DATABASE_URL env var for production (Neon), fallback to SQLite for local dev
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///shows.db')
+
+# Determine if using PostgreSQL
+IS_POSTGRES = DATABASE_URL.startswith('postgresql')
+
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
-session = Session()
+# Use scoped_session for thread-safety in web applications
+# This provides thread-local sessions, preventing data leakage between requests
+session = scoped_session(Session)
 
 class Show(Base):
     __tablename__ = 'shows'
@@ -22,6 +31,8 @@ class Show(Base):
     year = Column(String)                # original year string from OMDb (may contain range)
     imdb_rating = Column(Float)          # series aggregate rating
     imdb_votes = Column(Integer)         # aggregate vote count
+    view_count = Column(Integer, default=0)  # track app-level popularity
+    poster = Column(String)              # poster URL from OMDb
     last_full_refresh = Column(DateTime) # when full metadata + all seasons last fetched
     last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -54,42 +65,57 @@ def init_db():
     Base.metadata.create_all(engine)
 
 
-# Simple runtime migration: add missing columns if DB created earlier
 def ensure_columns():
-    import sqlite3
-    raw_conn = engine.raw_connection()
-    cur = raw_conn.cursor()
-    def column_exists(table, name):
-        cur.execute(f"PRAGMA table_info({table})")
-        return any(row[1] == name for row in cur.fetchall())
-    # shows table additions
-    new_show_cols = [
-        ('genres','TEXT'), ('year','TEXT'), ('imdb_rating','REAL'), ('imdb_votes','INTEGER'), ('last_full_refresh','DATETIME')
-    ]
-    for col, typ in new_show_cols:
-        if not column_exists('shows', col):
-            cur.execute(f"ALTER TABLE shows ADD COLUMN {col} {typ}")
-    # episodes table additions
-    new_ep_cols = [
-    ('votes','INTEGER'), ('last_checked','DATETIME'), ('missing','BOOLEAN'), ('absent','BOOLEAN'), ('air_date','DATETIME'), ('provisional','BOOLEAN')
-    ]
-    for col, typ in new_ep_cols:
-        if not column_exists('episodes', col):
-            cur.execute(f"ALTER TABLE episodes ADD COLUMN {col} {typ}")
-    # season_hashes table (already created by metadata if absent)
-    raw_conn.commit()
-    cur.close()
-    raw_conn.close()
+    """Add missing columns to existing tables - works with both SQLite and PostgreSQL."""
+    with engine.connect() as conn:
+        def column_exists(table, name):
+            if IS_POSTGRES:
+                result = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = :table AND column_name = :col"
+                ), {'table': table, 'col': name})
+                return result.fetchone() is not None
+            else:
+                result = conn.execute(text(f"PRAGMA table_info({table})"))
+                return any(row[1] == name for row in result.fetchall())
+        
+        # Type mappings: (column_name, sqlite_type, postgres_type)
+        new_show_cols = [
+            ('genres', 'TEXT', 'TEXT'),
+            ('year', 'TEXT', 'TEXT'),
+            ('imdb_rating', 'REAL', 'DOUBLE PRECISION'),
+            ('imdb_votes', 'INTEGER', 'INTEGER'),
+            ('last_full_refresh', 'DATETIME', 'TIMESTAMP'),
+            ('view_count', 'INTEGER', 'INTEGER'),
+            ('poster', 'TEXT', 'TEXT')
+        ]
+        for col, sqlite_type, pg_type in new_show_cols:
+            if not column_exists('shows', col):
+                col_type = pg_type if IS_POSTGRES else sqlite_type
+                conn.execute(text(f"ALTER TABLE shows ADD COLUMN {col} {col_type}"))
+        
+        new_ep_cols = [
+            ('votes', 'INTEGER', 'INTEGER'),
+            ('last_checked', 'DATETIME', 'TIMESTAMP'),
+            ('missing', 'BOOLEAN', 'BOOLEAN'),
+            ('absent', 'BOOLEAN', 'BOOLEAN'),
+            ('air_date', 'DATETIME', 'TIMESTAMP'),
+            ('provisional', 'BOOLEAN', 'BOOLEAN')
+        ]
+        for col, sqlite_type, pg_type in new_ep_cols:
+            if not column_exists('episodes', col):
+                col_type = pg_type if IS_POSTGRES else sqlite_type
+                conn.execute(text(f"ALTER TABLE episodes ADD COLUMN {col} {col_type}"))
+        
+        conn.commit()
 
 # Indices (idempotent)
 def ensure_indices():
-    raw_conn = engine.raw_connection()
-    cur = raw_conn.cursor()
-    # composite index for faster episode lookup
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_episode_show_season_ep ON episodes (show_id, season, episode)")
-    raw_conn.commit()
-    cur.close()
-    raw_conn.close()
+    """Create indices if they don't exist - works with both SQLite and PostgreSQL."""
+    with engine.connect() as conn:
+        # CREATE INDEX IF NOT EXISTS works on both SQLite and PostgreSQL
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_episode_show_season_ep ON episodes (show_id, season, episode)"))
+        conn.commit()
 
 
 SHOW_METADATA_STALE_DAYS = 7

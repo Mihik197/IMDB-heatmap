@@ -1,14 +1,29 @@
-import React from 'react';
+import Icon from './Icon';
 
-// Simple header with placeholder branding; non-breaking addition.
 const Header = () => {
   return (
-    <header className="app-header" role="banner">
-      <div className="brand">
-        <div className="wordmark">IMDB HEATMAP</div>
-        <div className="titles">
-          <h1 className="app-title">Episode Ratings by Season</h1>
-          <p className="app-tagline">Ratings distribution visualized</p>
+    <header className="sticky top-0 z-50 border-b border-border bg-bg-alt/95 backdrop-blur-md" role="banner">
+      <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center gap-8">
+        {/* Logo / Branding */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-accent-muted flex items-center justify-center shadow-md">
+            <Icon name="grid" size={18} className="text-bg" />
+          </div>
+          <div>
+            <div className="font-display text-lg font-bold tracking-wide text-accent">
+              IMDB HEATMAP
+            </div>
+            <p className="text-[11px] text-text-muted font-mono -mt-0.5">
+              Episode ratings visualized
+            </p>
+          </div>
+        </div>
+
+        {/* Tagline */}
+        <div className="hidden sm:block pl-6 border-l border-border">
+          <h1 className="font-heading text-base font-semibold text-text">
+            Episode Ratings by Season
+          </h1>
         </div>
       </div>
     </header>

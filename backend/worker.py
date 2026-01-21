@@ -18,7 +18,7 @@ def maintenance_worker(interval_seconds=21600):  # 6 hours
             for show in shows:
                 if is_show_metadata_stale(show):
                     print(f"[maintenance] metadata stale for {show.imdb_id}, refreshing.")
-                    api_key = os.getenv('VITE_API_KEY')
+                    api_key = os.getenv('OMDB_API_KEY')
                     series_url = f'http://www.omdbapi.com/?apikey={api_key}&i={show.imdb_id}'
                     series_resp = services.throttled_omdb_get(series_url)
                     if series_resp.status_code == 200:
@@ -44,7 +44,7 @@ def maintenance_worker(interval_seconds=21600):  # 6 hours
                     print(f"[maintenance] found {len(stale_eps)} stale episodes for {show.imdb_id}, checking missing.")
                     missing_eps = [ep for ep in stale_eps if ep.rating is None]
                     if missing_eps:
-                        api_key = os.getenv('VITE_API_KEY')
+                        api_key = os.getenv('OMDB_API_KEY')
                         for ep in missing_eps:
                             season_data = services.fetch_season_from_omdb(api_key, show.imdb_id, ep.season)
                             if not season_data:

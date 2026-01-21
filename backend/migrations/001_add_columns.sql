@@ -1,5 +1,0 @@
--- Manual migration documentation (applied at runtime by ensure_columns in app.py)
--- Added columns to shows: genres TEXT, year TEXT, imdb_rating REAL, imdb_votes INTEGER, last_full_refresh DATETIME
--- Added columns to episodes: votes INTEGER, last_checked DATETIME, missing BOOLEAN
--- Added table season_hashes: (id INTEGER PK, show_id INTEGER, season INTEGER, signature TEXT, last_computed DATETIME)
--- No direct SQL execution needed if running current app.py (auto ALTER TABLE logic). This file is for audit trail only.

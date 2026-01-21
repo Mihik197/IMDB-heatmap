@@ -2,27 +2,35 @@
 import React from 'react';
 
 const HeatmapLegend = () => {
+  // Original color scale to match HeatmapChart
   const legendColors = [
-    { color: '#4b000f', label: '< 5.7' },
-    { color: '#8f1d21', label: '5.7 – <6.7' },
-    { color: '#c2481f', label: '6.7 – <7.4' },
-    { color: '#d28f18', label: '7.4 – <8.0' },
-    { color: '#3f6f32', label: '8.0 – <8.6' }, // adjusted
-    { color: '#1f6434', label: '8.6 – <9.4' }, // new shade
-    { color: '#0f552f', label: '≥ 9.4' }
+    { color: '#ef4444', label: '< 5.5' },
+    { color: '#f97316', label: '5.5-6.5' },
+    { color: '#eab308', label: '6.5-7.2' },
+    { color: '#84cc16', label: '7.2-7.8' },
+    { color: '#22c55e', label: '7.8-8.3' },
+    { color: '#16a34a', label: '8.3-8.8' },
+    { color: '#15803d', label: '8.8-9.2' },
+    { color: '#166534', label: '≥ 9.2' }
   ];
 
   return (
-    <div className="legend-container" aria-label="Rating color legend">
+    <div className="flex flex-wrap gap-2 items-center mt-4" aria-label="Rating color legend">
+      <span className="text-xs font-mono text-text-muted mr-1">Rating:</span>
       {legendColors.map((item) => (
-        <div key={item.label} className="legend-item">
-          <div className="legend-color" style={{ backgroundColor: item.color }} />
-          <span>{item.label}</span>
+        <div key={item.label} className="flex items-center gap-1.5">
+          <div
+            className="w-4 h-4 rounded shadow-sm"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="text-[10px] font-mono text-text-muted">{item.label}</span>
         </div>
       ))}
-      <div className="legend-item missing">
-        <div className="legend-swatch" />
-        <div className="legend-label">No rating</div>
+      <div className="flex items-center gap-1.5 ml-2">
+        <div
+          className="w-4 h-4 rounded border border-dashed border-text-muted/50 bg-surface/30"
+        />
+        <span className="text-[10px] font-mono text-text-muted">No rating</span>
       </div>
     </div>
   );

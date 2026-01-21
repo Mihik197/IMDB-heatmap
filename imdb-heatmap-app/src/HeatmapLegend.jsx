@@ -5,12 +5,12 @@ const HeatmapLegend = () => {
   // Original color scale to match HeatmapChart
   const legendColors = [
     { color: '#ef4444', label: '< 5.5' },
-    { color: '#f97316', label: '5.5–6.5' },
-    { color: '#eab308', label: '6.5–7.2' },
-    { color: '#84cc16', label: '7.2–7.8' },
-    { color: '#22c55e', label: '7.8–8.3' },
-    { color: '#16a34a', label: '8.3–8.8' },
-    { color: '#15803d', label: '8.8–9.2' },
+    { color: '#f97316', label: '5.5-6.5' },
+    { color: '#eab308', label: '6.5-7.2' },
+    { color: '#84cc16', label: '7.2-7.8' },
+    { color: '#22c55e', label: '7.8-8.3' },
+    { color: '#16a34a', label: '8.3-8.8' },
+    { color: '#15803d', label: '8.8-9.2' },
     { color: '#166534', label: '≥ 9.2' }
   ];
 

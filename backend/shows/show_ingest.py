@@ -18,7 +18,7 @@ def fetch_and_store_show(imdb_id, track_view=False):
     if os.getenv('FAST_INGEST') == '1':
         return fast_fetch_and_store_show(imdb_id, track_view=track_view)
 
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     response = services.throttled_omdb_get(url)
     if response.status_code != 200:
@@ -69,7 +69,7 @@ def fetch_and_store_show(imdb_id, track_view=False):
 
 def fast_fetch_and_store_show(imdb_id, track_view=False):
     """Fast ingest path: quickly stores OMDb data and spawns a background thread for IMDb enrichment."""
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     series_url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     try:
         resp = services.throttled_omdb_get(series_url, timeout=10)

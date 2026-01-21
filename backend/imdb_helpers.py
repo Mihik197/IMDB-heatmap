@@ -32,24 +32,6 @@ def throttled_get(url, min_interval, timeout=10, headers=None):
     return resp
 
 
-# --- Cache helpers ---
-
-def ttl_cache_get(cache, key, ttl, require_value=True):
-    entry = cache.get(key)
-    if not entry:
-        return None
-    ts, val = entry
-    if (time.time() - ts) >= ttl:
-        return None
-    if require_value and not val:
-        return None
-    return val
-
-
-def ttl_cache_set(cache, key, value):
-    cache[key] = (time.time(), value)
-
-
 # --- Parsing helpers ---
 
 def parse_air_date(text):

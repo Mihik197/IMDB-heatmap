@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, func, text
-from sqlalchemy.orm import declarative_base 
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 from datetime import datetime, timedelta, UTC
 from dotenv import load_dotenv
 import os
@@ -17,7 +16,9 @@ IS_POSTGRES = DATABASE_URL.startswith('postgresql')
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
-session = Session()
+# Use scoped_session for thread-safety in web applications
+# This provides thread-local sessions, preventing data leakage between requests
+session = scoped_session(Session)
 
 class Show(Base):
     __tablename__ = 'shows'
@@ -64,7 +65,6 @@ def init_db():
     Base.metadata.create_all(engine)
 
 
-# Simple runtime migration: add missing columns if DB created earlier
 def ensure_columns():
     """Add missing columns to existing tables - works with both SQLite and PostgreSQL."""
     with engine.connect() as conn:

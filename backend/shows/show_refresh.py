@@ -15,7 +15,7 @@ from .show_helpers import (
 
 
 def process_missing_refresh(imdb_id):
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
         return JSONResponse({'error': 'Show not found in DB'}, status_code=404)
@@ -69,7 +69,7 @@ def process_missing_refresh(imdb_id):
 
 
 def process_show_refresh(imdb_id):
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
         from .show_ingest import fetch_and_store_show
@@ -184,7 +184,7 @@ def process_show_refresh(imdb_id):
 
 
 def process_metadata_refresh(imdb_id):
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     show = session.query(Show).filter_by(imdb_id=imdb_id).first()
     if not show:
         return JSONResponse({'error': 'Show not found'}, status_code=404)

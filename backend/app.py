@@ -67,7 +67,7 @@ def search_titles(q: str = Query('', alias='q'), page: str = Query('1', alias='p
     if cached and (now - cached[0]) < services.SEARCH_TTL:
         return cached[1]
         
-    api_key = os.getenv('VITE_API_KEY')
+    api_key = os.getenv('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={api_key}&s={query}&type=series&page={page}'
     try:
         resp = services.throttled_omdb_get(url, timeout=8)
@@ -96,7 +96,7 @@ def get_show_by_title(title: str = Query(None, alias='title')):
     if not title:
         return JSONResponse({'error': 'Title not provided'}, status_code=400)
 
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&t={title}'
     response = services.throttled_omdb_get(url)
     
@@ -139,7 +139,7 @@ def get_show_meta(imdbID: str = Query(None, alias='imdbID')):
     if error:
         return error
 
-    apiKey = os.getenv('VITE_API_KEY')
+    apiKey = os.getenv('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={apiKey}&i={imdb_id}'
     try:
         resp = services.throttled_omdb_get(url, timeout=10)
@@ -198,7 +198,7 @@ def get_trending():
 def get_popular():
     """Returns most viewed shows on this app."""
     shows = session.query(Show).filter(Show.view_count > 0).order_by(Show.view_count.desc()).limit(12).all()
-    api_key = os.getenv('VITE_API_KEY')
+    api_key = os.getenv('OMDB_API_KEY')
     result = []
     
     for s in shows:

@@ -78,7 +78,6 @@ FEATURED_SHOW_IDS = [
     {'imdbID': 'tt0118375', 'title': 'Cowboy Bebop', 'year': '1998-1999'},
     {'imdbID': 'tt6751668', 'title': 'Demon Slayer', 'year': '2019-'},
     {'imdbID': 'tt5363918', 'title': 'Arcane', 'year': '2021-'},
-    {'imdbID': 'tt2861424', 'title': 'Rick and Morty', 'year': '2013-'},
     {'imdbID': 'tt0213338', 'title': 'SpongeBob SquarePants', 'year': '1999-'},
     {'imdbID': 'tt0088559', 'title': 'Dragon Ball Z', 'year': '1989-1996'},
     

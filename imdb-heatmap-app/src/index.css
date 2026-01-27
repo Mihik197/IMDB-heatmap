@@ -156,20 +156,24 @@ body,
 
 .animate-fade-in {
     animation: fadeIn 0.2s ease-out;
+    will-change: transform, opacity;
 }
 
 .animate-fade-in-scale {
     animation: fadeInScale 0.15s ease-out;
+    will-change: transform, opacity;
 }
 
 .animate-shimmer {
     background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.04) 50%, transparent 100%);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
+    will-change: background-position;
 }
 
 .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+    will-change: box-shadow;
 }
 
 /* ============================================

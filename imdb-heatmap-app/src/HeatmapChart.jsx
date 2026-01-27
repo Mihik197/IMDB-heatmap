@@ -15,7 +15,7 @@ const colorScale = (rating) => {
   return '#166534';
 };
 
-const HeatmapChart = ({ episodeDataForD3, seasons }) => {
+const HeatmapChart = React.memo(({ episodeDataForD3, seasons }) => {
   const [hoveredEpisode, setHoveredEpisode] = useState(null);
   const tooltipRef = useRef(null);
 
@@ -164,6 +164,6 @@ const HeatmapChart = ({ episodeDataForD3, seasons }) => {
       <EpisodeTooltip ref={tooltipRef} episode={hoveredEpisode} />
     </div>
   );
-};
+});
 
 export default HeatmapChart;

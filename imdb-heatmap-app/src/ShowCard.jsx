@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
@@ -8,7 +9,7 @@ const formatYear = (yearStr) => {
     return match ? match[1] : yearStr;
 };
 
-const ShowCard = ({ show }) => {
+const ShowCard = React.memo(({ show }) => {
     const hasRating = show.imdbRating && show.imdbRating !== 'N/A';
     const displayYear = formatYear(show.year);
 
@@ -24,6 +25,7 @@ const ShowCard = ({ show }) => {
                         src={show.poster}
                         alt=""
                         loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -53,6 +55,6 @@ const ShowCard = ({ show }) => {
             </div>
         </Link>
     );
-};
+});
 
 export default ShowCard;

@@ -31,7 +31,7 @@ export function useShowData(imdbId) {
         } catch (_) { /* ignore */ }
     }, [data?.imdbID])
 
-    // Fetch metadata and episodes when imdbId changes
+    // Fetch metadata and episodes in PARALLEL when imdbId changes
     useEffect(() => {
         if (!imdbId) {
             setData(null);
@@ -46,38 +46,48 @@ export function useShowData(imdbId) {
         setData(null);
         setBaseMeta(null);
         setLoadingMeta(true);
-        setLoadingEpisodes(false);
+        setLoadingEpisodes(true); // Both loading states start immediately
         etagRef.current = null;
 
-        const metaController = new AbortController();
+        const controller = new AbortController();
+        episodesAbortRef.current = controller;
 
-        fetch(`http://localhost:5000/getShowMeta?imdbID=${imdbId}`, { signal: metaController.signal })
-            .then(r => r.json())
-            .then(meta => {
+        // Parallel fetch: both API calls run simultaneously
+        Promise.all([
+            fetch(`http://localhost:5000/getShowMeta?imdbID=${imdbId}`, { signal: controller.signal }),
+            fetch(`http://localhost:5000/getShow?imdbID=${imdbId}&trackView=1`, { signal: controller.signal })
+        ])
+            .then(async ([metaRes, dataRes]) => {
+                const [meta, full] = await Promise.all([metaRes.json(), dataRes.json()]);
+
+                if (controller.signal.aborted) return;
+
+                // Process metadata
                 setLoadingMeta(false);
                 if (meta && !meta.error) {
                     setBaseMeta(prev => ({ ...prev, ...meta }));
-                    setLoadingEpisodes(true);
-                    const epController = new AbortController();
-                    episodesAbortRef.current = epController;
-                    fetch(`http://localhost:5000/getShow?imdbID=${imdbId}&trackView=1`, { signal: epController.signal })
-                        .then(r => r.json())
-                        .then(full => {
-                            if (!epController.signal.aborted) {
-                                if (full && !full.error) setData(full);
-                                else setError(full?.error || 'Fetch failed');
-                            }
-                        })
-                        .catch(e => { if (e.name !== 'AbortError') setError('Fetch failed'); })
-                        .finally(() => { if (!epController.signal.aborted) setLoadingEpisodes(false); });
                 } else {
-                    setBaseMeta(null);
                     setError(meta?.error || 'Metadata fetch failed');
                 }
-            })
-            .catch(e => { if (e.name !== 'AbortError') { setLoadingMeta(false); setError('Metadata fetch failed'); } });
 
-        return () => { metaController.abort(); if (episodesAbortRef.current) episodesAbortRef.current.abort(); };
+                // Process episode data
+                setLoadingEpisodes(false);
+                if (full && !full.error) {
+                    setData(full);
+                } else if (!meta?.error) {
+                    // Only set error if meta didn't already fail
+                    setError(full?.error || 'Fetch failed');
+                }
+            })
+            .catch(e => {
+                if (e.name !== 'AbortError') {
+                    setLoadingMeta(false);
+                    setLoadingEpisodes(false);
+                    setError('Fetch failed');
+                }
+            });
+
+        return () => { controller.abort(); };
     }, [imdbId])
 
     // Polling for partial data updates

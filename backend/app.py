@@ -63,10 +63,9 @@ def search_titles(q: str = Query('', alias='q'), page: str = Query('1', alias='p
         return []
     
     ql = query.lower()
-    now = time.time()
     cached = services._search_cache.get(ql)
-    if cached and (now - cached[0]) < services.SEARCH_TTL:
-        return cached[1]
+    if cached:
+        return cached
         
     api_key = os.getenv('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?apikey={api_key}&s={query}&type=series&page={page}'
@@ -89,7 +88,7 @@ def search_titles(q: str = Query('', alias='q'), page: str = Query('1', alias='p
         'type': item.get('Type')
     } for item in data.get('Search', [])[:10]]
     
-    services._search_cache[ql] = (now, results)
+    services._search_cache.set(ql, results)
     return results
 
 @app.get("/getShowByTitle")

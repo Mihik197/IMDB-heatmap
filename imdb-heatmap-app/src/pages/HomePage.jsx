@@ -1,6 +1,6 @@
-import SearchBar from '../SearchBar'
-import DiscoverSection from '../DiscoverSection'
-import RecentShows from '../RecentShows'
+import SearchBar from '../components/SearchBar'
+import DiscoverSection from '../components/DiscoverSection'
+import RecentShows from '../components/RecentShows'
 
 /**
  * Home page - landing experience with search and discovery sections.

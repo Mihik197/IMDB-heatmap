@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom'
-import { useShowData } from '../useShowData'
-import HeatMap from '../HeatMap'
-import ShowInfoSidebar from '../ShowInfoSidebar'
-import ErrorAlert from '../ErrorAlert'
-import RecentShows from '../RecentShows'
-import Icon from '../Icon'
+import { useShowData } from '../hooks/useShowData'
+import HeatMap from '../components/HeatMap'
+import ShowInfoSidebar from '../components/ShowInfoSidebar'
+import ErrorAlert from '../components/ErrorAlert'
+import RecentShows from '../components/RecentShows'
+import Icon from '../components/Icon'
 
 /**
  * Show page - displays heatmap for a specific TV show.

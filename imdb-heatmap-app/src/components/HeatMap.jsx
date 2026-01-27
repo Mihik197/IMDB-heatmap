@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react/prop-types */
-import useFetchSeasonsData from './useFetchSeasonsData.js';
+import useFetchSeasonsData from '../hooks/useFetchSeasonsData.js';
 import HeatmapChart from './HeatmapChart';
 import HeatmapLegend from './HeatmapLegend';
 import Icon from './Icon';

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { GithubLogo } from '@phosphor-icons/react';
 import Icon from './Icon';
 
 const Header = () => {
@@ -25,6 +26,18 @@ const Header = () => {
           <h1 className="font-heading text-base font-semibold text-text">
             Episode Ratings by Season
           </h1>
+        </div>
+
+        <div className="ml-auto flex items-center">
+          <a
+            href="https://github.com/Mihik197"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub profile"
+            className="inline-flex items-center text-text-muted hover:text-accent transition-colors"
+          >
+            <GithubLogo size={20} weight="fill" />
+          </a>
         </div>
       </div>
     </header>

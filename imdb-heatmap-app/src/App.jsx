@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import HomePage from './pages/HomePage'
 import ShowPage from './pages/ShowPage'
 
@@ -16,6 +17,7 @@ function App() {
           <Route path="/show/:imdbId" element={<ShowPage />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   )
 }

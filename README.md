@@ -31,7 +31,7 @@ cd backend
 python -m venv venv
 ./venv/Scripts/Activate.ps1
 pip install -r requirements.txt
-echo VITE_API_KEY=YOUR_OMDB_KEY > .env
+echo OMDB_API_KEY=YOUR_OMDB_KEY > .env
 # optional fast ingest
 echo FAST_INGEST=1 >> .env
 python app.py
@@ -47,8 +47,38 @@ Open the Vite dev URL (e.g. http://localhost:5173) while backend runs on port 50
 
 ## Minimal Configuration
 
-Required: `VITE_API_KEY` (OMDb API key) in `backend/.env`.
+Required: `OMDB_API_KEY` (OMDb API key) in `backend/.env`.
 Optional: `FAST_INGEST=1` for two-phase load; `ENABLE_SCRAPE_CACHE=1` to cache scraped ratings.
+
+## Free Deployment Guide (Recommended)
+
+Use Cloudflare Pages (frontend) + Render Free Web Service (backend).
+
+### 1) Backend on Render (Free)
+1. Create a new Render Web Service and connect this repo.
+2. Render detects [render.yaml](render.yaml) automatically. If it doesn’t:
+	- Root Directory: `backend`
+	- Build Command: `pip install -r requirements.txt`
+	- Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+3. Add environment variables:
+	- `OMDB_API_KEY` (required)
+	- `DATABASE_URL` (Postgres URL from Render’s free database)
+	- `CORS_ALLOW_ORIGINS` (comma-separated, e.g. `https://your-site.pages.dev`)
+4. Deploy. Copy the public API URL (e.g., `https://imdb-heatmap-api.onrender.com`).
+
+### 2) Frontend on Cloudflare Pages (Free)
+1. Create a new Pages project from this repo.
+2. Build settings:
+	- Root directory: `imdb-heatmap-app`
+	- Build command: `npm install && npm run build`
+	- Output directory: `dist`
+3. Add environment variable:
+	- `VITE_API_URL` = your Render API URL
+4. Deploy.
+
+### 3) After Deploy
+- Verify API access in browser: `https://<render-url>/search?q=breaking`.
+- If requests fail, set `CORS_ALLOW_ORIGINS` to your Cloudflare Pages URL.
 
 ## Fast Ingest (Summary)
 

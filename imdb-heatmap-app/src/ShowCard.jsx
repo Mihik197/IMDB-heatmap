@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
 // Helper to extract just the start year for consistent display
@@ -7,15 +8,14 @@ const formatYear = (yearStr) => {
     return match ? match[1] : yearStr;
 };
 
-const ShowCard = ({ show, onSelect }) => {
+const ShowCard = ({ show }) => {
     const hasRating = show.imdbRating && show.imdbRating !== 'N/A';
     const displayYear = formatYear(show.year);
 
     return (
-        <button
+        <Link
+            to={`/show/${show.imdbID}`}
             className="discover-card group"
-            onClick={() => onSelect && onSelect({ imdbID: show.imdbID, title: show.title })}
-            type="button"
             aria-label={`View heatmap for ${show.title}`}
         >
             {show.poster && show.poster !== 'N/A' ? (
@@ -51,7 +51,7 @@ const ShowCard = ({ show, onSelect }) => {
                     {show.title}
                 </span>
             </div>
-        </button>
+        </Link>
     );
 };
 

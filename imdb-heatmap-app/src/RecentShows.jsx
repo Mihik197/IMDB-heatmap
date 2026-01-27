@@ -1,7 +1,7 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
-const RecentShows = ({ onSelect }) => {
+const RecentShows = () => {
   let items = [];
   try {
     const raw = localStorage.getItem('recentShows');
@@ -21,11 +21,10 @@ const RecentShows = ({ onSelect }) => {
       </div>
       <div className="flex flex-wrap gap-3">
         {items.map(item => (
-          <button
+          <Link
             key={item.imdbID}
+            to={`/show/${item.imdbID}`}
             className="card card-glow p-2.5 w-[150px] text-left transition-all duration-200 hover:-translate-y-1 group"
-            onClick={() => onSelect && onSelect(item.title)}
-            type="button"
             aria-label={`Load ${item.title}`}
           >
             {item.poster && item.poster !== 'N/A' && (
@@ -51,7 +50,7 @@ const RecentShows = ({ onSelect }) => {
             {item.year && (
               <span className="block font-mono text-[10px] text-text-muted mt-0.5">{item.year}</span>
             )}
-          </button>
+          </Link>
         ))}
       </div>
     </section>

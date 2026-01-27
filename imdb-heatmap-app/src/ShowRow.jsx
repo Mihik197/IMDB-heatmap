@@ -6,7 +6,7 @@ import ShowCard from './ShowCard';
 const INITIAL_ITEMS = 8;
 const LOAD_MORE_ITEMS = 6;
 
-const ShowRow = ({ title, icon, shows, onSelect, loading }) => {
+const ShowRow = ({ title, icon, shows, loading }) => {
     const scrollRef = useRef(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
@@ -127,7 +127,7 @@ const ShowRow = ({ title, icon, shows, onSelect, loading }) => {
                     ) : (
                         <>
                             {visibleShows.map((show) => (
-                                <ShowCard key={show.imdbID} show={show} onSelect={onSelect} />
+                                <ShowCard key={show.imdbID} show={show} />
                             ))}
                             {/* Loading indicator for more items */}
                             {hasMore && (

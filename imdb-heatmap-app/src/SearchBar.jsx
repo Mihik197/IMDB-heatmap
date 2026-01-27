@@ -1,8 +1,10 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 
-const SearchBar = ({ onSearch }) => {
+const SearchBar = () => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -36,14 +38,18 @@ const SearchBar = ({ onSearch }) => {
     e.preventDefault();
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (abortRef.current) abortRef.current.abort();
+
     if (activeIndex >= 0 && suggestions[activeIndex]) {
       const sel = suggestions[activeIndex];
       committedQueryRef.current = sel.title;
-      onSearch(sel);
-      setQuery(sel.title);
-    } else {
-      committedQueryRef.current = query;
-      onSearch({ title: query });
+      navigate(`/show/${sel.imdbID}`);
+      setQuery('');
+    } else if (suggestions.length > 0) {
+      // Navigate to first suggestion if no selection
+      const first = suggestions[0];
+      committedQueryRef.current = first.title;
+      navigate(`/show/${first.imdbID}`);
+      setQuery('');
     }
     setSuggestions([]);
     setOpen(false);
@@ -60,8 +66,8 @@ const SearchBar = ({ onSearch }) => {
     committedQueryRef.current = s.title;
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (abortRef.current) abortRef.current.abort();
-    onSearch(s);
-    setQuery(s.title);
+    navigate(`/show/${s.imdbID}`);
+    setQuery('');
     setSuggestions([]);
     setOpen(false);
   };

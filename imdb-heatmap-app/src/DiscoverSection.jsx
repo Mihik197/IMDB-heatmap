@@ -38,7 +38,7 @@ const setCachedData = (key, data) => {
     }
 };
 
-const DiscoverSection = ({ onSelect }) => {
+const DiscoverSection = () => {
     const [trending, setTrending] = useState([]);
     const [popular, setPopular] = useState([]);
     const [featured, setFeatured] = useState([]);
@@ -114,7 +114,6 @@ const DiscoverSection = ({ onSelect }) => {
                 title="Featured Shows"
                 icon="star"
                 shows={featured}
-                onSelect={onSelect}
                 loading={loading.featured}
             />
 
@@ -123,7 +122,6 @@ const DiscoverSection = ({ onSelect }) => {
                 title="Trending on IMDB"
                 icon="fire"
                 shows={trending}
-                onSelect={onSelect}
                 loading={loading.trending}
             />
 
@@ -132,7 +130,6 @@ const DiscoverSection = ({ onSelect }) => {
                 title="Popular on HeatMap"
                 icon="chart"
                 shows={popular}
-                onSelect={onSelect}
                 loading={loading.popular}
             />
         </div>

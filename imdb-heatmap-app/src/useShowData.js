@@ -3,36 +3,19 @@ import { useState, useEffect, useRef } from 'react'
 
 /**
  * Custom hook for fetching, polling, and refreshing TV show data.
- * @param {string|null} currentID - The IMDb ID of the show
- * @param {string} searchQuery - The search query (used when no ID is available)
+ * @param {string|null} imdbId - The IMDb ID of the show
  * @returns {object} Show data, metadata, loading states, errors, and refresh functions
  */
-export function useShowData(currentID, searchQuery) {
+export function useShowData(imdbId) {
     const [data, setData] = useState(null)
     const [baseMeta, setBaseMeta] = useState(null)
     const [loadingMeta, setLoadingMeta] = useState(false)
     const [loadingEpisodes, setLoadingEpisodes] = useState(false)
     const [refreshingMissing, setRefreshingMissing] = useState(false)
     const [error, setError] = useState(null)
-    const [resolvedID, setResolvedID] = useState(currentID)
     const episodesAbortRef = useRef(null)
     const pollStopRef = useRef(false)
     const etagRef = useRef(null)
-
-    // Reset state when search changes
-    const reset = () => {
-        if (episodesAbortRef.current) { episodesAbortRef.current.abort(); }
-        setError(null);
-        setData(null);
-        setBaseMeta(null);
-        setLoadingMeta(true);
-        setLoadingEpisodes(false);
-    }
-
-    // Sync resolvedID with currentID prop
-    useEffect(() => {
-        setResolvedID(currentID);
-    }, [currentID]);
 
     // Save to recent shows when data loads
     useEffect(() => {
@@ -48,53 +31,54 @@ export function useShowData(currentID, searchQuery) {
         } catch (_) { /* ignore */ }
     }, [data?.imdbID])
 
-    // Fetch metadata and episodes
+    // Fetch metadata and episodes when imdbId changes
     useEffect(() => {
+        if (!imdbId) {
+            setData(null);
+            setBaseMeta(null);
+            setError(null);
+            return;
+        }
+
+        // Reset state for new show
+        if (episodesAbortRef.current) { episodesAbortRef.current.abort(); }
+        setError(null);
+        setData(null);
+        setBaseMeta(null);
+        setLoadingMeta(true);
+        setLoadingEpisodes(false);
+        etagRef.current = null;
+
         const metaController = new AbortController();
 
-        if (resolvedID) {
-            fetch(`http://localhost:5000/getShowMeta?imdbID=${resolvedID}`, { signal: metaController.signal })
-                .then(r => r.json())
-                .then(meta => {
-                    setLoadingMeta(false);
-                    if (meta && !meta.error) {
-                        setBaseMeta(prev => ({ ...prev, ...meta }));
-                        setLoadingEpisodes(true);
-                        const epController = new AbortController();
-                        episodesAbortRef.current = epController;
-                        fetch(`http://localhost:5000/getShow?imdbID=${resolvedID}&trackView=1`, { signal: epController.signal })
-                            .then(r => r.json())
-                            .then(full => {
-                                if (!epController.signal.aborted) {
-                                    if (full && !full.error) setData(full);
-                                    else setError(full?.error || 'Fetch failed');
-                                }
-                            })
-                            .catch(e => { if (e.name !== 'AbortError') setError('Fetch failed'); })
-                            .finally(() => { if (!epController.signal.aborted) setLoadingEpisodes(false); });
-                    } else {
-                        setBaseMeta(null);
-                        setError(meta?.error || 'Metadata fetch failed');
-                    }
-                })
-                .catch(e => { if (e.name !== 'AbortError') { setLoadingMeta(false); setError('Metadata fetch failed'); } });
-            return () => { metaController.abort(); if (episodesAbortRef.current) episodesAbortRef.current.abort(); };
-        }
+        fetch(`http://localhost:5000/getShowMeta?imdbID=${imdbId}`, { signal: metaController.signal })
+            .then(r => r.json())
+            .then(meta => {
+                setLoadingMeta(false);
+                if (meta && !meta.error) {
+                    setBaseMeta(prev => ({ ...prev, ...meta }));
+                    setLoadingEpisodes(true);
+                    const epController = new AbortController();
+                    episodesAbortRef.current = epController;
+                    fetch(`http://localhost:5000/getShow?imdbID=${imdbId}&trackView=1`, { signal: epController.signal })
+                        .then(r => r.json())
+                        .then(full => {
+                            if (!epController.signal.aborted) {
+                                if (full && !full.error) setData(full);
+                                else setError(full?.error || 'Fetch failed');
+                            }
+                        })
+                        .catch(e => { if (e.name !== 'AbortError') setError('Fetch failed'); })
+                        .finally(() => { if (!epController.signal.aborted) setLoadingEpisodes(false); });
+                } else {
+                    setBaseMeta(null);
+                    setError(meta?.error || 'Metadata fetch failed');
+                }
+            })
+            .catch(e => { if (e.name !== 'AbortError') { setLoadingMeta(false); setError('Metadata fetch failed'); } });
 
-        if (searchQuery && !resolvedID) {
-            fetch(`http://localhost:5000/getShowByTitle?title=${encodeURIComponent(searchQuery)}`, { signal: metaController.signal })
-                .then(r => r.json())
-                .then(meta => {
-                    setLoadingMeta(false);
-                    setBaseMeta(meta);
-                    if (meta && meta.imdbID) {
-                        setResolvedID(meta.imdbID);
-                    }
-                })
-                .catch(e => { if (e.name !== 'AbortError') { setLoadingMeta(false); setError('Fetch failed'); } });
-            return () => metaController.abort();
-        }
-    }, [resolvedID, searchQuery])
+        return () => { metaController.abort(); if (episodesAbortRef.current) episodesAbortRef.current.abort(); };
+    }, [imdbId])
 
     // Polling for partial data updates
     const partialData = data?.partialData;
@@ -192,8 +176,6 @@ export function useShowData(currentID, searchQuery) {
         loadingEpisodes,
         refreshingMissing,
         error,
-        resolvedID,
-        reset,
         refreshMissing,
         refreshAll,
         // Derived state

@@ -109,8 +109,10 @@ def get_show_data(imdb_id, if_none_match=None, enrichment_set=None, missing_refr
     incomplete = any(ep.rating is None for ep in episodes)
     metadata_stale = is_show_metadata_stale(show)
     episodes_stale_count = sum(1 for ep in episodes if is_episode_stale(ep))
-    absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False))
-    provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False))
+    # Only count episodes as absent/provisional if they DON'T have a rating yet
+    # Episodes with ratings shouldn't trigger enrichment indicators even if flags are stale
+    absent_count = sum(1 for ep in episodes if getattr(ep, 'absent', False) and ep.rating is None)
+    provisional_count = sum(1 for ep in episodes if getattr(ep, 'provisional', False) and ep.rating is None)
     enrichment_set = enrichment_set or set()
     missing_refresh_set = missing_refresh_set or set()
 

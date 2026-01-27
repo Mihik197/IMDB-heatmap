@@ -5,17 +5,15 @@ import Icon from './Icon'
  * @param {object} props
  * @param {object} props.baseMeta - Show metadata (Title, Poster, Year, etc.)
  * @param {object} props.data - Episode data with status flags
- * @param {function} props.onRefreshMissing - Callback to refresh missing episodes
- * @param {function} props.onRefreshAll - Callback to refresh all data
- * @param {boolean} props.refreshingMissing - Whether a refresh is in progress
+ * @param {function} props.onRefresh - Callback to refresh all show data
+ * @param {boolean} props.isRefreshPending - Whether a refresh request is pending
  * @param {boolean} props.loadingEpisodes - Whether episodes are loading
  */
 export default function ShowInfoSidebar({
     baseMeta,
     data,
-    onRefreshMissing,
-    onRefreshAll,
-    refreshingMissing,
+    onRefresh,
+    isRefreshPending,
     loadingEpisodes
 }) {
     if (!baseMeta) return null;
@@ -91,44 +89,55 @@ export default function ShowInfoSidebar({
                 <p className="text-sm text-text-muted leading-relaxed mb-4">{baseMeta.Plot}</p>
             )}
 
-            {/* Status badges */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                {incomplete && (
-                    <span className="badge badge-gold" title="Some episodes still missing ratings">
-                        <Icon name="warning" size={10} />
-                        Incomplete
-                    </span>
-                )}
-                {(partialData || missingRefreshInProgress || refreshingMissing) && (
-                    <span className="badge badge-blue animate-pulse" title="Background enrichment in progress">
-                        <Icon name="refresh" size={10} className="animate-spin" />
-                        Enriching…
-                    </span>
-                )}
-            </div>
+            {/* Status badge - unified indicator for data state */}
+            {(() => {
+                // Unified condition: any background work happening
+                const isEnriching = partialData || missingRefreshInProgress || isRefreshPending;
 
-            {/* Action buttons */}
+                // Show enrichment badge with priority (takes precedence over incomplete)
+                if (isEnriching) {
+                    return (
+                        <div className="mb-4">
+                            <span className="badge badge-blue animate-pulse" title="Fetching episode ratings from IMDb - they'll appear automatically">
+                                <Icon name="refresh" size={10} className="animate-spin" />
+                                Loading ratings…
+                            </span>
+                        </div>
+                    );
+                }
+
+                // Show incomplete warning only when NOT actively enriching
+                // This means ratings couldn't be found and likely won't appear
+                if (incomplete) {
+                    return (
+                        <div className="mb-4">
+                            <span className="badge badge-gold" title="Some episode ratings are unavailable on IMDb">
+                                <Icon name="warning" size={10} />
+                                Some ratings unavailable
+                            </span>
+                        </div>
+                    );
+                }
+
+                return null;
+            })()}
+
+            {/* Refresh button - adaptive label based on state */}
             <div className="flex flex-col gap-2">
-                {hasMissing && (
-                    <button
-                        className="btn btn-secondary flex items-center justify-center gap-2 w-full text-xs"
-                        onClick={onRefreshMissing}
-                        disabled={refreshingMissing}
-                    >
-                        <Icon name="refresh" size={14} className={refreshingMissing ? 'animate-spin' : ''} />
-                        {refreshingMissing ? 'Refreshing…' : 'Refresh missing'}
-                    </button>
-                )}
-                {stale && (
-                    <button
-                        className="btn btn-secondary flex items-center justify-center gap-2 w-full text-xs"
-                        onClick={onRefreshAll}
-                        disabled={refreshingMissing}
-                    >
-                        <Icon name="refresh" size={14} className={refreshingMissing ? 'animate-spin' : ''} />
-                        {refreshingMissing ? 'Refreshing…' : 'Refresh data'}
-                    </button>
-                )}
+                <button
+                    className="btn btn-secondary flex items-center justify-center gap-2 w-full text-xs"
+                    onClick={onRefresh}
+                    disabled={isRefreshPending}
+                >
+                    <Icon name="refresh" size={14} className={isRefreshPending ? 'animate-spin' : ''} />
+                    {isRefreshPending
+                        ? 'Refreshing…'
+                        : hasMissing
+                            ? 'Refresh missing ratings'
+                            : stale
+                                ? 'Refresh stale data'
+                                : 'Refresh data'}
+                </button>
             </div>
 
             {loadingEpisodes && (

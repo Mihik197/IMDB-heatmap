@@ -17,12 +17,10 @@ export default function ShowPage() {
         data,
         baseMeta,
         loadingEpisodes,
-        refreshingMissing,
+        isRefreshPending,
         error,
-        refreshMissing,
         refreshAll,
         stillLoading,
-        partialData,
     } = useShowData(imdbId)
 
     return (
@@ -40,24 +38,17 @@ export default function ShowPage() {
 
             {baseMeta && !baseMeta.error && (
                 <div className="flex gap-6 items-start animate-fade-in">
-                    {/* Left Sidebar - Show Info */}
+                    {/* Left Sidebar - Show Info (contains unified status indicator) */}
                     <ShowInfoSidebar
                         baseMeta={baseMeta}
                         data={data}
-                        onRefreshMissing={refreshMissing}
-                        onRefreshAll={refreshAll}
-                        refreshingMissing={refreshingMissing}
+                        onRefresh={refreshAll}
+                        isRefreshPending={isRefreshPending}
                         loadingEpisodes={loadingEpisodes}
                     />
 
                     {/* Right Content - Heatmap */}
                     <div className="flex-1 min-w-0">
-                        {partialData && !loadingEpisodes && (
-                            <div className="mb-4 px-4 py-3 flex items-center gap-2 text-sm text-info bg-blue-900/20 border border-blue-800/40 rounded-lg" aria-live="polite">
-                                <Icon name="info" size={16} className="shrink-0" />
-                                Background IMDb enrichment running… latest ratings will appear automatically.
-                            </div>
-                        )}
                         {data && data.episodes && !loadingEpisodes && <HeatMap data={data} baseMeta={baseMeta} />}
                         {loadingEpisodes && (
                             <div className="flex items-center gap-3 text-text-muted py-8">

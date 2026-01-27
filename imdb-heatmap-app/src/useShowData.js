@@ -11,7 +11,7 @@ export function useShowData(imdbId) {
     const [baseMeta, setBaseMeta] = useState(null)
     const [loadingMeta, setLoadingMeta] = useState(false)
     const [loadingEpisodes, setLoadingEpisodes] = useState(false)
-    const [refreshingMissing, setRefreshingMissing] = useState(false)
+    const [isRefreshPending, setIsRefreshPending] = useState(false)
     const [error, setError] = useState(null)
     const episodesAbortRef = useRef(null)
     const pollStopRef = useRef(false)
@@ -83,7 +83,7 @@ export function useShowData(imdbId) {
     // Polling for partial data updates
     const partialData = data?.partialData;
     const missingRefreshInProgress = data?.missingRefreshInProgress;
-    const shouldPoll = !!(partialData || data?.incomplete || missingRefreshInProgress || refreshingMissing);
+    const shouldPoll = !!(partialData || data?.incomplete || missingRefreshInProgress || isRefreshPending);
 
     useEffect(() => {
         if (!data?.imdbID || !shouldPoll) { pollStopRef.current = true; return; }
@@ -143,30 +143,30 @@ export function useShowData(imdbId) {
 
         const id = setTimeout(tick, intervalMs);
         return () => { pollStopRef.current = true; clearTimeout(id); };
-    }, [partialData, data?.imdbID, data?.incomplete, missingRefreshInProgress, refreshingMissing, shouldPoll])
+    }, [partialData, data?.imdbID, data?.incomplete, missingRefreshInProgress, isRefreshPending, shouldPoll])
 
     // Refresh functions
     const refreshMissing = () => {
         if (!data?.imdbID) return;
-        setRefreshingMissing(true);
+        setIsRefreshPending(true);
         fetch(`http://localhost:5000/refresh/missing?imdbID=${data.imdbID}`, { method: 'POST' })
             .then(r => r.json())
             .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
             .then(r => r.json())
             .then(full => setData(full))
             .catch(() => {/* silent */ })
-            .finally(() => setRefreshingMissing(false));
+            .finally(() => setIsRefreshPending(false));
     }
 
     const refreshAll = () => {
         if (!data?.imdbID) return;
-        setRefreshingMissing(true);
+        setIsRefreshPending(true);
         fetch(`http://localhost:5000/refresh/show?imdbID=${data.imdbID}`, { method: 'POST' })
             .then(r => r.json())
             .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
             .then(r => r.json())
             .then(full => setData(full))
-            .finally(() => setRefreshingMissing(false));
+            .finally(() => setIsRefreshPending(false));
     }
 
     return {
@@ -174,7 +174,7 @@ export function useShowData(imdbId) {
         baseMeta,
         loadingMeta,
         loadingEpisodes,
-        refreshingMissing,
+        isRefreshPending,
         error,
         refreshMissing,
         refreshAll,

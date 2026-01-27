@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../config/api';
 import Icon from './Icon';
 
 const SearchBar = () => {
@@ -23,7 +24,7 @@ const SearchBar = () => {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
       try {
-        const res = await fetch(`http://localhost:5000/search?q=${encodeURIComponent(query)}`, { signal: abortRef.current.signal });
+        const res = await fetch(apiUrl('/search', { q: query }), { signal: abortRef.current.signal });
         const data = await res.json();
         if (query === committedQueryRef.current) return;
         setSuggestions(data);

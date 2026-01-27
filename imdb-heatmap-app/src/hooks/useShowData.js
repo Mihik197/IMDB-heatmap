@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useRef } from 'react'
+import { apiUrl } from '../config/api'
 
 /**
  * Custom hook for fetching, polling, and refreshing TV show data.
@@ -54,8 +55,8 @@ export function useShowData(imdbId) {
 
         // Parallel fetch: both API calls run simultaneously
         Promise.all([
-            fetch(`http://localhost:5000/getShowMeta?imdbID=${imdbId}`, { signal: controller.signal }),
-            fetch(`http://localhost:5000/getShow?imdbID=${imdbId}&trackView=1`, { signal: controller.signal })
+            fetch(apiUrl('/getShowMeta', { imdbID: imdbId }), { signal: controller.signal }),
+            fetch(apiUrl('/getShow', { imdbID: imdbId, trackView: 1 }), { signal: controller.signal })
         ])
             .then(async ([metaRes, dataRes]) => {
                 const [meta, full] = await Promise.all([metaRes.json(), dataRes.json()]);
@@ -105,7 +106,7 @@ export function useShowData(imdbId) {
         const tick = () => {
             if (pollStopRef.current) return;
             attempts += 1;
-            fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`, {
+            fetch(apiUrl('/getShow', { imdbID: data.imdbID, trackView: 0 }), {
                 headers: { 'Cache-Control': 'no-cache', ...(etagRef.current ? { 'If-None-Match': etagRef.current } : {}) }
             })
                 .then(async r => {
@@ -159,9 +160,9 @@ export function useShowData(imdbId) {
     const refreshMissing = () => {
         if (!data?.imdbID) return;
         setIsRefreshPending(true);
-        fetch(`http://localhost:5000/refresh/missing?imdbID=${data.imdbID}`, { method: 'POST' })
+        fetch(apiUrl('/refresh/missing', { imdbID: data.imdbID }), { method: 'POST' })
             .then(r => r.json())
-            .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
+            .then(() => fetch(apiUrl('/getShow', { imdbID: data.imdbID, trackView: 0 })))
             .then(r => r.json())
             .then(full => setData(full))
             .catch(() => {/* silent */ })
@@ -171,9 +172,9 @@ export function useShowData(imdbId) {
     const refreshAll = () => {
         if (!data?.imdbID) return;
         setIsRefreshPending(true);
-        fetch(`http://localhost:5000/refresh/show?imdbID=${data.imdbID}`, { method: 'POST' })
+        fetch(apiUrl('/refresh/show', { imdbID: data.imdbID }), { method: 'POST' })
             .then(r => r.json())
-            .then(() => fetch(`http://localhost:5000/getShow?imdbID=${data.imdbID}&trackView=0`))
+            .then(() => fetch(apiUrl('/getShow', { imdbID: data.imdbID, trackView: 0 })))
             .then(r => r.json())
             .then(full => setData(full))
             .finally(() => setIsRefreshPending(false));

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '../config/api';
 import ShowRow from './ShowRow';
 
 // Cache TTL values (in milliseconds)
@@ -55,7 +56,7 @@ const DiscoverSection = () => {
             setTrending(cachedTrending);
             setLoading(prev => ({ ...prev, trending: false }));
         } else {
-            fetch('http://localhost:5000/trending')
+            fetch(apiUrl('/trending'))
                 .then(r => r.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
@@ -72,7 +73,7 @@ const DiscoverSection = () => {
             setFeatured(cachedFeatured);
             setLoading(prev => ({ ...prev, featured: false }));
         } else {
-            fetch('http://localhost:5000/featured')
+            fetch(apiUrl('/featured'))
                 .then(r => r.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
@@ -89,7 +90,7 @@ const DiscoverSection = () => {
             setPopular(cachedPopular);
             setLoading(prev => ({ ...prev, popular: false }));
         } else {
-            fetch('http://localhost:5000/popular')
+            fetch(apiUrl('/popular'))
                 .then(r => r.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
